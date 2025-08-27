@@ -7,9 +7,8 @@ import { createPortal } from "react-dom";
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
-import UploadProfile from "@/app/assets/uploadprofilepic.png";
-import ExpandIcon from "@/app/assets/expand.png";
-import ShrinkIcon from "@/app/assets/shrink.png";
+import ExpandIcon from "@/app/Assets/expand.png";
+import ShrinkIcon from "@/app/Assets/shrink.png";
 
 import {
   ChevronRightIcon,

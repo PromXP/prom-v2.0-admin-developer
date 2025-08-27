@@ -16,16 +16,12 @@ import {
 import { Raleway, Inter, Poppins } from "next/font/google";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
-import MainBg from "@/app/Assets/mainbg.png";
-import MainsubBg from "@/app/Assets/mainsubbg.png";
-import Logo from "@/app/Assets/logo.png";
-import Headset from "@/app/Assets/headset.png";
+
 import Patdocacc from "@/app/Assets/patdocacc.png";
 import Manavatar from "@/app/Assets/man.png";
 import Womanavatar from "@/app/Assets/woman.png";
 import Reportimg from "@/app/Assets/report.png";
 import Notify from "@/app/Assets/notify.png";
-import Call from "@/app/Assets/call.png";
 import Block from "@/app/Assets/block.png";
 import Error from "@/app/Assets/error.png";
 
