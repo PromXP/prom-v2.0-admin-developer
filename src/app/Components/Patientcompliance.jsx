@@ -4,6 +4,9 @@ import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
@@ -49,7 +52,11 @@ const outfit = Outfit({
   variable: "--font-outfit", // optional CSS variable name
 });
 
-const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
+const Patientcompliance = ({
+  isOpencompliance,
+  setisOpencompliance,
+  selecteduhidcompliance,
+}) => {
   const useWindowSize = () => {
     const [size, setSize] = useState({
       width: 0,
@@ -78,6 +85,65 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
 
   const [mounted, setMounted] = useState(false);
 
+  const [ques, setQues] = useState([]);
+
+  const [patientname, setPatientName] = useState("");
+
+  useEffect(() => {
+    if (!selecteduhidcompliance) return;
+
+    const fetchPatientReminder = async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}patients-by-uhid/${selecteduhidcompliance}`
+        );
+
+        const nameMapping = {
+          OKS: "Oxford Knee Score (OKS)",
+          KOOS_JR:
+            "Knee Injury and Osteoarthritis Outcome Score, Joint Replacement (KOOS, JR)",
+          FJS: "Forgotten Joint Score (FJS)",
+          SF12: "Short Form-12 (SF-12)",
+          KSS: "Knee Society Score (KSS)", // <-- add if needed
+        };
+
+        const transformData = (data,side) => {
+          let result = [];
+          let idCounter = 1;
+
+          for (const [key, periods] of Object.entries(data)) {
+            for (const [period, details] of Object.entries(periods)) {
+              result.push({
+                id: idCounter++,
+                name: nameMapping[key] || key, // map short code to full name
+                period: period.replace("_", " "), // e.g. Pre_Op → Pre Op
+                deadline: details.deadline || "",
+                completed: details.completed ? 1 : 0,
+                side: side
+              });
+            }
+          }
+
+          return result;
+        };
+
+        setPatientName(res.data.patient.Patient.name);
+        setQues([
+          ...transformData(res.data.patient.Medical_Left,"left"),
+          ...transformData(res.data.patient.Medical_Right,"right"),
+        ]);
+
+        console.log("Fetched patient data:", {
+          transformData: transformData(res.data.patient.Medical_Left),
+        });
+      } catch (err) {
+        console.error("Error fetching patient reminder:", err);
+      }
+    };
+
+    fetchPatientReminder();
+  }, [selecteduhidcompliance]);
+
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
@@ -92,113 +158,29 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
     setTimeout(() => setShowAlert(false), 4000);
   };
 
-  const ques = [
-    {
-      id: 1,
-      name: "Oxford Knee Score",
-      period: "1Y",
-      deadline: "2026-01-11",
-      completed: 0,
-    },
-    {
-      id: 2,
-      name: "KOOS JR",
-      period: "2Y",
-      deadline: "2027-07-27",
-      completed: 0,
-    },
-    {
-      id: 3,
-      name: "KOOS JR",
-      period: "Pre Op",
-      deadline: "2026-04-25",
-      completed: 1,
-    },
-    {
-      id: 4,
-      name: "Oxford Knee Score",
-      period: "2Y",
-      deadline: "2027-08-04",
-      completed: 0,
-    },
-    {
-      id: 5,
-      name: "KOOS JR",
-      period: "6M",
-      deadline: "2026-05-19",
-      completed: 1,
-    },
-    {
-      id: 6,
-      name: "Oxford Knee Score",
-      period: "Pre Op",
-      deadline: "2027-06-12",
-      completed: 1,
-    },
-    {
-      id: 7,
-      name: "FJS (Forgotten Joint Score)",
-      period: "3M",
-      deadline: "2027-07-13",
-      completed: 0,
-    },
-    {
-      id: 8,
-      name: "FJS (Forgotten Joint Score)",
-      period: "3M",
-      deadline: "2026-05-21",
-      completed: 1,
-    },
-    {
-      id: 9,
-      name: "KOOS JR",
-      period: "Pre Op",
-      deadline: "2026-08-30",
-      completed: 0,
-    },
-    {
-      id: 10,
-      name: "Oxford Knee Score",
-      period: "Pre Op",
-      deadline: "2026-10-13",
-      completed: 0,
-    },
-    {
-      id: 11,
-      name: "FJS (Forgotten Joint Score)",
-      period: "2Y",
-      deadline: "2026-07-26",
-      completed: 1,
-    },
-    {
-      id: 12,
-      name: "FJS (Forgotten Joint Score)",
-      period: "6M",
-      deadline: "2027-06-27",
-      completed: 1,
-    },
-    {
-      id: 13,
-      name: "SF-12 Health Survey",
-      period: "2Y",
-      deadline: "2025-11-28",
-      completed: 0,
-    },
-    {
-      id: 14,
-      name: "SF-12 Health Survey",
-      period: "3M",
-      deadline: "2026-10-19",
-      completed: 1,
-    },
-    {
-      id: 15,
-      name: "FJS (Forgotten Joint Score)",
-      period: "Pre Op",
-      deadline: "2026-05-07",
-      completed: 1,
-    },
-  ];
+  const [editingRow, setEditingRow] = useState(null); // index of row being edited
+  const [tempDeadlines, setTempDeadlines] = useState({}); // {index: deadline}
+
+  const updateQuestionnaire = async (data) => {
+    console.log("Updating questionnaire:", data);
+  try {
+    const response = await axios.put(`${API_URL}reset_single_questionnaire`, data);
+
+    console.log("Questionnaire updated:", response.data);
+    showWarning("Questionnaire Reset successful!");
+  } catch (error) {
+    if (error.response) {
+      // Server returned a response
+      showWarning("Failed to update questionnaire");
+    } else if (error.request) {
+      // Request made but no response
+      showWarning("No response from server. Please try again.");
+    } else {
+      // Other errors
+      showWarning("Error: " + error.message);
+    }
+  }
+};
 
   if (!isOpencompliance || !mounted) return null;
 
@@ -212,7 +194,7 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
       <div
         className={`
                min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
-               ${width < 950 ? "gap-4 w-full" : "w-3/4"}
+               ${width < 950 ? "gap-4 w-full" : "w-6/7"}
                ${expand ? "w-full" : "p-4"}
              `}
       >
@@ -236,7 +218,7 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
                   <p
                     className={`${inter.className} text-xl font-bold text-black`}
                   >
-                    Patient Name's Compliance
+                    {patientname}'s Compliance
                   </p>
                   <div
                     className={`flex flex-row gap-4 items-center justify-center`}
@@ -264,7 +246,10 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
                       src={CloseIcon}
                       alt="Close"
                       className={`w-fit h-6 cursor-pointer`}
-                      onClick={() => setisOpencompliance()}
+                      onClick={() => {
+                        setisOpencompliance();
+                        setexpand(false);
+                      }}
                     />
                   </div>
                 </div>
@@ -282,7 +267,7 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
                 >
                   <div className="w-full overflow-x-auto">
                     <table
-                      className={`w-full min-w-[850px] ${inter.className} font-medium text-center text-black`}
+                      className={`w-full min-w-[1000px] ${inter.className} font-medium text-center text-black`}
                     >
                       <thead>
                         <tr
@@ -290,63 +275,118 @@ const Patientcompliance = ({ isOpencompliance, setisOpencompliance }) => {
                         >
                           <th className="py-2">Name</th>
                           <th className="py-2">Period</th>
-                          <th className="py-2">Status</th>
+                          <th className="py-2">Side</th>
                           <th className="py-2">Deadline</th>
                           <th className="py-2"></th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {ques.map((item, index) => (
-                          <tr
-                            key={index}
-                            className={`${raleway.className} font-semibold`}
-                          >
-                            <td className="text-start py-2 text-sm text-black">
-                              {item.name}
-                            </td>
-                            <td className="py-2 text-sm text-black">
-                              {item.period}
-                            </td>
-                            <td
-                              className={`py-2 text-sm ${
-                                item.completed === 1
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {item.completed === 1 ? "Completed" : "Pending"}
-                            </td>
 
-                            <td
-                              className={`py-2 text-sm text-black ${
-                                inter.className
-                              } font-medium ${
-                                item.completed === 1
-                                  ? "text-gray-400 cursor-not-allowed"
-                                  : ""
-                              }`}
+                      <tbody>
+                        {ques.map((item, index) => {
+                          const isEditing = editingRow === index;
+                          const tempDeadline =
+                            tempDeadlines[index] ?? item.deadline;
+
+                          return (
+                            <tr
+                              key={index}
+                              className={`${raleway.className} font-semibold`}
                             >
-                              <div className="flex items-center justify-between w-3/5 mx-auto">
-                                <span>{item.deadline}</span>
-                                <PencilSquareIcon className="w-5 h-5" />
-                              </div>
-                            </td>
-                            <td
-                              onClick={() => {
-                                if (item.completed !== 1) {
-                                  // Trigger Modal or Reschedule Logic Here
-                                }
-                              }}
-                              className={`${
-                                item.completed === 1
-                                  ? "text-gray-400 cursor-not-allowed"
-                                  : "text-black cursor-pointer"
-                              }`}
-                            >
-                              Reschedule
-                            </td>
-                          </tr>
-                        ))}
+                              <td className="text-start py-2 text-sm text-black w-4/9">
+                                {item.name}
+                              </td>
+                              <td className="py-2 text-sm text-black w-1/9">
+                                {item.period}
+                              </td>
+                              <td
+                                className={`py-2 text-sm w-1/9 ${
+                                  item.completed === 1
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {item.side.charAt(0).toUpperCase() }
+                              </td>
+
+                              <td
+                                className={`py-2 text-sm text-black w-2/9 ${
+                                  inter.className
+                                } font-medium ${
+                                  item.completed === 1
+                                    ? "text-gray-400 cursor-not-allowed"
+                                    : ""
+                                }`}
+                              >
+                                <div className="flex items-center justify-center gap-4 w-4/5 mx-auto">
+                                  {isEditing ? (
+                                    <>
+                                      <input
+                                        type="date"
+                                        className="border rounded px-2 py-1 text-sm"
+                                        value={tempDeadline}
+                                        onChange={(e) =>
+                                          setTempDeadlines({
+                                            ...tempDeadlines,
+                                            [index]: e.target.value,
+                                          })
+                                        }
+                                      />
+                                      <ClipboardDocumentCheckIcon
+                                        className="w-6 h-6 cursor-pointer text-green-600"
+                                        onClick={() => {
+                                          item.deadline = tempDeadlines[index]; // save
+                                          setEditingRow(null);
+                                        }}
+                                      />
+                                      <XMarkIcon
+                                        className="w-6 h-6 cursor-pointer text-red-600"
+                                        onClick={() => {
+                                          setTempDeadlines({
+                                            ...tempDeadlines,
+                                            [index]: item.deadline,
+                                          }); // reset
+                                          setEditingRow(null);
+                                        }}
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>{item.deadline}</span>
+                                      {item.completed !== 1 && (
+                                        <PencilSquareIcon
+                                          className="w-5 h-5 cursor-pointer"
+                                          onClick={() => setEditingRow(index)}
+                                        />
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td
+                                onClick={() => {
+                                  if (item.completed !== 1) {
+                                    const data = {
+                                      patient_id: selecteduhidcompliance,
+                                      side: item.side,
+                                      questionnaire: item.name,
+                                      period: item.period,
+                                      start_date: tempDeadlines[index]
+                                    };
+                                    updateQuestionnaire(data);
+                                  }
+                                }}
+                                className={`w-1/9 ${
+                                  item.completed === 1
+                                    ? "text-gray-400 cursor-not-allowed"
+                                    : "text-black cursor-pointer"
+                                }`}
+                              >
+                                Reschedule
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

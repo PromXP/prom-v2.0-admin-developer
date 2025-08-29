@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import { Raleway, Inter, Poppins } from "next/font/google";
 
 import MainBg from "@/app/Assets/mainbg.png";
@@ -58,13 +61,16 @@ const page = () => {
 
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [resetUHID, setResetUHID] = useState("");
 
   const [userUHID, setuserUHID] = useState("");
   const [userPassword, setuserPassword] = useState("");
   const [showPassword, setshowPassword] = useState(false);
   const [showAlert, setshowAlert] = useState(false);
   const [alermessage, setAlertMessage] = useState("");
-  const [response, setResponse] = useState(null);
+
+  const [loginlock, setloginlock] = useState(false);
+  const [resetloginlock, setResetLoginLock] = useState(false);
 
   const showWarning = (message) => {
     setAlertMessage(message);
@@ -72,8 +78,45 @@ const page = () => {
     setTimeout(() => setshowAlert(false), 4000);
   };
 
-  const handlelogin = () => {
-    router.replace("/Homedashboard");
+  const handlelogin = async (e) => {
+    if (!userUHID) {
+      showWarning("Please enter your UHID");
+      return;
+    }
+    if (!userPassword) {
+      showWarning("Please enter your password");
+      return;
+    }
+    setloginlock(true);
+
+    try {
+      const res = await axios.post(`${API_URL}auth/login`, {
+        identifier: userUHID,
+        password: userPassword,
+        type: "admin",
+      });
+
+      if (typeof window !== "undefined") {
+      sessionStorage.setItem("admin", userUHID);
+      }
+
+      // redirect
+      router.replace("/Homedashboard");
+      setloginlock(false);
+      setuserUHID("");
+      setuserPassword("");
+    } catch (err) {
+      setloginlock(false);
+      setuserUHID("");
+      setuserPassword("");
+      if (err.response) {
+        showWarning(err.response.data.detail || "Login failed");
+      } else if (err.request) {
+        showWarning("No response from server");
+      } else {
+        showWarning("Network error");
+      }
+    }
   };
 
   return (
@@ -128,12 +171,16 @@ const page = () => {
                     <input
                       type="text"
                       placeholder="UEID / Email / Phone"
+                      value={userUHID}
+                      onChange={(e) => setuserUHID(e.target.value)}
                       className={`${poppins.className} rounded-md p-3 text-sm text-gray-900 placeholder-black bg-white focus:outline-none focus:ring-2 focus:ring-teal-400`}
                     />
                     <div className="relative w-full">
                       <input
                         type={showPassword ? "text" : "password"}
                         placeholder="Password"
+                        value={userPassword}
+                        onChange={(e) => setuserPassword(e.target.value)}
                         className={`${poppins.className} w-full rounded-md text-sm p-3 text-gray-900 placeholder-black bg-white focus:outline-none focus:ring-2 focus:ring-teal-400`}
                       />
                       {/* Password show/hide icon placeholder on right */}
@@ -187,6 +234,7 @@ const page = () => {
 
                     <button
                       type="submit"
+                      disabled={loginlock}
                       className={`${raleway.className} w-2/5 text-lg cursor-pointer bg-black text-white rounded-md py-1 font-semibold hover:bg-gray-800 transition`}
                     >
                       Login
@@ -214,8 +262,8 @@ const page = () => {
                     <input
                       type="text"
                       placeholder="UEID"
-                      value={userUHID}
-                      onChange={(e) => setuserUHID(e.target.value)}
+                      value={resetUHID}
+                      onChange={(e) => setResetUHID(e.target.value)}
                       className={`${poppins.className} rounded-md p-3 text-sm text-gray-900 placeholder-black bg-white focus:outline-none focus:ring-2 focus:ring-teal-400`}
                     />
                     <input
@@ -247,6 +295,7 @@ const page = () => {
                         onClick={() => {
                           setShowForgotPassword(false);
                           setResetEmail("");
+                          setResetUHID("");
                         }}
                       >
                         Back to Login
@@ -330,6 +379,16 @@ const page = () => {
           </div>
         </div>
       </div>
+
+      {showAlert && (
+        <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+          <div
+            className={`${poppins.className} bg-yellow-100 border border-red-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out`}
+          >
+            {alermessage}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

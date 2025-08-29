@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-
 import {
   BarChart,
   Bar,
@@ -94,7 +93,7 @@ const page = () => {
 
   const router = useRouter();
 
-    const [activeTab, setActiveTab] = useState(() => {
+  const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
       return sessionStorage.getItem("selectedTab") || "Patients";
     }
@@ -163,11 +162,10 @@ const page = () => {
         return null;
     }
   };
-  
-  const handlelogout=()=>{
-    router.replace("/Login");
-  }
 
+  const handlelogout = () => {
+    router.replace("/Login");
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -185,8 +183,12 @@ const page = () => {
     }
   }, []);
 
+
+
   return (
-    <div className={`relative bg-[#CFDADE] min-h-screen w-full overflow-x-hidden `}>
+    <div
+      className={`relative bg-[#CFDADE] min-h-screen w-full overflow-x-hidden `}
+    >
       {/* Top-left MainBg */}
       <div className="absolute top-0 left-0">
         <Image src={MainBg} alt="MainBg" className="w-64 h-64" />
@@ -247,7 +249,10 @@ const page = () => {
                   </div>
                   <div className="w-2/7 flex flex-row items-end justify-end gap-8">
                     <Image src={Headset} alt="Support" className="w-6 h-6" />
-                    <ArrowRightStartOnRectangleIcon className="w-6 h-6 text-black cursor-pointer" onClick={handlelogout}/>
+                    <ArrowRightStartOnRectangleIcon
+                      className="w-6 h-6 text-black cursor-pointer"
+                      onClick={handlelogout}
+                    />
                     <div
                       className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
                     >
@@ -311,7 +316,10 @@ const page = () => {
                     </div>
                     <div className="w-fit flex flex-row gap-8">
                       <Image src={Headset} alt="Support" className="w-6 h-6" />
-                      <ArrowRightStartOnRectangleIcon className="w-6 h-6 text-black"  onClick={handlelogout}/>
+                      <ArrowRightStartOnRectangleIcon
+                        className="w-6 h-6 text-black"
+                        onClick={handlelogout}
+                      />
                     </div>
                   </div>
                   <nav className="p-4 space-y-4">

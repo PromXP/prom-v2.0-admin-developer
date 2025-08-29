@@ -4,6 +4,9 @@ import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
@@ -72,19 +75,11 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
   const [heightbmi, setHeightbmi] = useState("");
   const [weight, setWeight] = useState("");
   const [bmi, setBmi] = useState("");
-  const [selectedGender, setSelectedGender] = useState(""); // "female" | "male" | "other"
-  const [doctorAssigned, setDoctorAssigned] = useState("");
-  const [adminAssigned, setAdminAssigned] = useState("");
-  const [password, setPassword] = useState("");
-  const [age, setAge] = useState(0);
-  const [selectedOptiondrop, setSelectedOptiondrop] = useState("NN");
+  const [selectedGender, setSelectedGender] = useState("Male"); // "female" | "male" | "other"
+  const [selectedOptiondrop, setSelectedOptiondrop] = useState("A+");
   const [selectedDate, setSelectedDate] = useState("");
   const [surgerydate, setsurgeryDate] = useState("");
   const [surgeryname, setsurgeryname] = useState("");
-  const [surgerydatel, setsurgeryDatel] = useState("");
-  const [surgerynamel, setsurgerynamel] = useState("");
-  const [surgerydater, setsurgeryDater] = useState("");
-  const [surgerynamer, setsurgerynamer] = useState("");
 
   const dateInputRef = useRef(null);
 
@@ -126,76 +121,76 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
   };
 
   const handleManualDateChange = (e) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+  let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
 
-    if (value.length >= 3 && value.length <= 4) {
-      value = value.slice(0, 2) + "-" + value.slice(2);
-    } else if (value.length > 4 && value.length <= 8) {
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    } else if (value.length > 8) {
-      value = value.slice(0, 8);
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+  if (value.length >= 3 && value.length <= 4) {
+    value = value.slice(0, 2) + "-" + value.slice(2);
+  } else if (value.length > 4 && value.length <= 8) {
+    value =
+      value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+  } else if (value.length > 8) {
+    value = value.slice(0, 8);
+    value =
+      value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+  }
+
+  // Show raw value until full date entered
+  setSelectedDate(value);
+
+  if (value.length === 10) {
+    const [dayStr, monthStr, yearStr] = value.split("-");
+    const day = parseInt(dayStr, 10);
+    const month = parseInt(monthStr, 10);
+    const year = parseInt(yearStr, 10);
+
+    const today = new Date();
+    const currentYear = today.getFullYear();
+
+    // Basic validations
+    if (
+      day < 1 ||
+      day > 31 ||
+      month < 1 ||
+      month > 12 ||
+      year >= currentYear
+    ) {
+      showWarning("Please enter a valid date of birth.");
+      setSelectedDate("");
+      return;
     }
 
-    // Until full date entered, show raw value
-    setSelectedDate(value);
+    // Check valid real date
+    const manualDate = new Date(`${year}-${month}-${day}`);
 
-    if (value.length === 10) {
-      const [dayStr, monthStr, yearStr] = value.split("-");
-      const day = parseInt(dayStr, 10);
-      const month = parseInt(monthStr, 10);
-      const year = parseInt(yearStr, 10);
-
-      const today = new Date();
-      const currentYear = today.getFullYear();
-
-      // Basic validations
-      if (
-        day < 1 ||
-        day > 31 ||
-        month < 1 ||
-        month > 12 ||
-        year >= currentYear
-      ) {
-        showWarning("Please enter a valid date of birth.");
-        setSelectedDate("");
-        return;
-      }
-
-      // Check valid real date
-      const manualDate = new Date(`${year}-${month}-${day}`);
-      if (
-        manualDate.getDate() !== day ||
-        manualDate.getMonth() + 1 !== month ||
-        manualDate.getFullYear() !== year
-      ) {
-        showWarning("Invalid date combination. Please enter a correct date.");
-        setSelectedDate("");
-        return;
-      }
-
-      // Check if future or today
-      today.setHours(0, 0, 0, 0);
-      manualDate.setHours(0, 0, 0, 0);
-
-      if (manualDate >= today) {
-        showWarning("Birth date cannot be today or a future date.");
-        setSelectedDate("");
-        return;
-      }
-
-      // If all valid, format as "dd Mmm yyyy"
-      const formattedDate = manualDate.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-
-      setSelectedDate(formattedDate);
+    if (
+      manualDate.getDate() !== day ||
+      manualDate.getMonth() + 1 !== month ||
+      manualDate.getFullYear() !== year
+    ) {
+      showWarning("Invalid date combination. Please enter a correct date.");
+      setSelectedDate("");
+      return;
     }
-  };
+
+    // Check if future or today
+    today.setHours(0, 0, 0, 0);
+    manualDate.setHours(0, 0, 0, 0);
+
+    if (manualDate >= today) {
+      showWarning("Birth date cannot be today or a future date.");
+      setSelectedDate("");
+      return;
+    }
+
+    // ✅ Final format as yyyy-mm-dd
+    const formattedDate = `${manualDate.getFullYear()}-${String(
+      manualDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(manualDate.getDate()).padStart(2, "0")}`;
+
+    setSelectedDate(formattedDate);
+  }
+};
+
 
   const handleManualsurgeryDateChange = (e) => {
     let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
@@ -238,6 +233,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         manualDate.getFullYear() !== year
       ) {
         showWarning("Invalid date combination. Please enter a correct date.");
+        setsurgeryDate("");
+        return;
+      }
+
+      // 🚨 Past date check
+      if (manualDate < today) {
+        showWarning("Past dates are not allowed");
         setsurgeryDate("");
         return;
       }
@@ -382,7 +384,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     setHeightbmi("");
     setWeight("");
     setBmi("");
-    setMessage("");
     setsurgeryDate("");
     setAddress("");
     setsurgeryname("");
@@ -423,6 +424,115 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
 
   const [mounted, setMounted] = useState(false);
 
+  
+
+  
+  
+
+  const handleCreatePatient = async () => {
+    let adminUhid = "";
+    // ✅ List of fields to validate
+    if (typeof window !== "undefined") {
+      adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
+    }
+    const requiredFields = [
+      {value: adminUhid, message: "Admin UHID is missing" },
+      {value: uhid, message: "Patient UHID is required" },
+      { value: firstName, message: "First Name is required" },
+      { value: lastName, message: "Last Name is required" },
+      { value: email, message: "Email is required" },
+      { value: phone, message: "Phone number is required" },
+      { value: selectedDate, message: "Date of Birth is required" },
+      { value: selectedGender, message: "Gender is required" },
+      { value: address, message: "Address is required" },
+      { value: heightbmi, message: "Height is required" },
+      { value: weight, message: "Weight is required" },
+      { value: selectedFunding, message: "Operation funding is required" },
+      { value: selectedIDs, message: "ID Proof is required" },
+      { value: selectedKnees, message: "Patient current status is required" },
+      { value: surgerydate, message: "Surgery date is required" },
+    ];
+
+    // ✅ Check one by one
+    for (let field of requiredFields) {
+      if (
+        !field.value ||
+        (Array.isArray(field.value) && field.value.length === 0)
+      ) {
+        showWarning(field.message);
+        return;
+      }
+    }
+
+    // ✅ Special checks
+    if (phone.length !== 10) {
+      showWarning("Phone number must be 10 digits");
+      return;
+    }
+
+    if (alterphone.length !== 10) {
+      showWarning("Alternate phone number must be 10 digits");
+      return;
+    }
+
+
+    // ✅ Build payload after validation
+    const payload = {
+      base: {
+        uhid,
+        first_name: firstName,
+        last_name: lastName,
+        password: "patient@123", // adjust as needed
+        vip: 0,
+        dob: selectedDate,
+        gender: selectedGender.toLowerCase(),
+      },
+      contact: {
+        uhid,
+        email,
+        phone_number: phone,
+        alternatenumber: alterphone || "",
+        address,
+        doctor_uhid_left: "NA",
+        doctor_uhid_right: "NA",
+        admin_uhid: adminUhid,
+        opd_appointment_date: "",
+        profile_picture_url: "NA",
+      },
+      medical: {
+        uhid,
+        blood_grp: selectedOptiondrop || "",
+        height: Number(heightbmi),
+        weight: Number(weight),
+        activation_status: true,
+        activation_comment: [],
+        patient_followup_comment: [],
+        operation_funding:
+          selectedFunding === "OTHER" ? otherFunding : selectedFunding,
+        idproof: selectedIDs,
+        patient_current_status:
+        selectedKnees.length > 0 ? selectedKnees.join(", ") : "NONE",
+        surgery_date_left: selectedKnees.includes("LEFT") ? surgerydate : "",
+        surgery_date_right: selectedKnees.includes("RIGHT") ? surgerydate : "",
+      },
+    };
+
+    console.log("Submitting payload:", payload);
+    // return
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/full`,
+        payload
+      );
+      console.log("✅ Patient created:", res.data);
+      showWarning("Patient created successfully!");
+    } catch (error) {
+      console.error("❌ Error creating patient:", error);
+      showWarning("Failed to create patient"+error);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
@@ -440,18 +550,14 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       <div
         className={`
           min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
-          ${
-            width < 950
-              ? "gap-4 w-full"
-              : "w-5/6"
-          }
-          ${expand?"w-full":"p-4"}
+          ${width < 950 ? "gap-4 w-full" : "w-5/6"}
+          ${expand ? "w-full" : "p-4"}
         `}
       >
         <div
           className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
             width < 1095 ? "flex flex-col gap-4" : ""
-          } ${expand?"max-h-[100vh]":"max-h-[92vh] rounded-2xl"}`}
+          } ${expand ? "max-h-[100vh]" : "max-h-[92vh] rounded-2xl"}`}
         >
           <div
             className={`w-full bg-[#FCFCFC]  ${
@@ -565,6 +671,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     />
                   </div>
                 </div>
+
                 <div
                   className={`flex flex-col gap-2 ${
                     width >= 1200 ? "w-1/2" : "w-full"
@@ -720,7 +827,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       Phone Number *
                     </p>
                     <input
-                      type="text"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
                       className={`
                       w-full
                       bg-transparent
@@ -733,7 +843,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       ${inter.className}
                     `}
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ""); // keep only digits
+                        setPhone(value);
+                      }}
                     />
                   </div>
 
@@ -744,7 +857,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       Alternate Phone Number
                     </p>
                     <input
-                      type="text"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
                       className={`
                       w-full
                       bg-transparent
@@ -757,7 +873,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       ${inter.className}
                     `}
                       value={alterphone}
-                      onChange={(e) => setalterPhone(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ""); // keep only digits
+                        setalterPhone(value);
+                      }}
                     />
                   </div>
 
@@ -782,6 +901,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     `}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (email && !emailRegex.test(email)) {
+                          showWarning("Please enter a valid email address.");
+                          setEmail("");
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -1053,8 +1179,8 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       >
                         <input
                           type="checkbox"
-                          checked={selectedKnees.includes("left")}
-                          onChange={() => toggleKnee("left")}
+                          checked={selectedKnees.includes("LEFT")}
+                          onChange={() => toggleKnee("LEFT")}
                           className="accent-[#319B8F]"
                         />
                         Left Knee
@@ -1064,8 +1190,8 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       >
                         <input
                           type="checkbox"
-                          checked={selectedKnees.includes("right")}
-                          onChange={() => toggleKnee("right")}
+                          checked={selectedKnees.includes("RIGHT")}
+                          onChange={() => toggleKnee("RIGHT")}
                           className="accent-[#319B8F]"
                         />
                         Right Knee
@@ -1138,21 +1264,20 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                 }`}
               >
                 <button
-                  className={`text-black/80 font-normal ${outfit.className} ${
-                    width < 700 ? "w-1/2" : "w-1/7"
-                  }`}
+                  className={`text-black/80 font-normal ${
+                    outfit.className
+                  } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/7"}`}
                   onClick={clearAllFields}
                 >
                   Clear All
                 </button>
                 <button
-                  className={`bg-[#161C10] text-white py-2 rounded-sm font-normal ${
+                  className={`bg-[#161C10] text-white py-2 rounded-sm font-normal cursor-pointer ${
                     outfit.className
                   } ${width < 700 ? "w-1/2" : "w-1/7"}`}
                   onClick={() => {
                     // Handle form submission logic here
-                    setSuccess("Patient registered successfully!");
-                    setError("");
+                    handleCreatePatient();
                   }}
                 >
                   CREATE

@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import {
   BarChart,
   Bar,
@@ -95,16 +98,40 @@ const Doctorlist = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [completionstatus, setcompletionstatus] = useState("COMPLETED");
+  const [patients, setPatients] = useState([]);
 
-  const patients = Array.from({ length: 50 }, (_, i) => ({
-    name: `Patient ${i + 1}`,
-    age: 20 + (i % 30), // age between 20–49
-    gender: i % 2 === 0 ? "Male" : "Female",
-    uhid: `UHID${1000 + i}`,
-    period: ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"][i % 6],
-    status: i % 3 === 0 ? "COMPLETED" : "PENDING",
-    avatar: i % 2 === 0 ? Manavatar : Womanavatar,
-  }));
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const res = await axios.get(`${API_URL}get_admin_doctor_page`);
+
+        const doctors = res.data.total_doctors || [];
+        const doctorPatients = doctors.map((doc, i) => ({
+          name: doc.name,
+          age: doc.birth_date
+            ? new Date().getFullYear() - new Date(doc.birth_date).getFullYear()
+            : "NA",
+          gender: doc.gender === "male" ? "Male" : "Female",
+          uhid: doc.uhid,
+          compliance: doc.overall_compliance,
+          count: doc.total_patients,
+          avatar: doc.gender === "male" ? Manavatar : Womanavatar,
+        }));
+        setPatients(doctorPatients);
+      } catch (err) {
+        // console.error("❌ Error fetching patients:", err);
+        if (err.response) {
+          setError(err.response.data.detail || "Failed to fetch patients");
+        } else {
+          setError("Network error");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatients();
+  }, []);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -171,6 +198,13 @@ const Doctorlist = ({
   ];
 
   const [shownotassigned, setshownotassigned] = useState(false);
+
+  function getComplianceColor(value) {
+    // value: 0–100
+    const green = Math.min(255, Math.floor((value / 100) * 255));
+    const red = 255 - green;
+    return `rgb(${red}, ${green}, 0)`; // 0–green, red decreases as value increases
+  }
 
   return (
     <>
@@ -512,7 +546,7 @@ const Doctorlist = ({
                       <p
                         className={`${poppins.className} text-base font-medium text-[#475467] opacity-50`}
                       >
-                        UHID {patient.uhid}
+                        {patient.uhid}
                       </p>
                     </div>
 
@@ -524,11 +558,11 @@ const Doctorlist = ({
                       <div
                         className={`${inter.className} font-semibold text-[#373737] text-sm w-1/2`}
                       >
-                        8 Patients
+                        {patient.count} Patients
                       </div>
 
                       {/* Progress Bar with Hover */}
-                      {shownotassigned ? (
+                      {patient.compliance === "NA" ? (
                         <div className="w-1/2 flex flex-col items-end relative group">
                           <Image
                             src={Error}
@@ -536,7 +570,7 @@ const Doctorlist = ({
                             className={`w-6 h-6`}
                           />
 
-                          <div className="relative w-full h-1.5 overflow-hidden bg-white cursor-pointer">
+                          <div className="relative w-full h-1.5 overflow-hidden bg-white ">
                             {/* Filled Progress */}
                             <div
                               className="h-3/4 bg-[#E5E5E5]"
@@ -553,7 +587,7 @@ const Doctorlist = ({
                         <div className="w-1/2 flex flex-col items-center relative group">
                           {/* Hover Percentage Text */}
                           <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
-                            75%
+                           {patient.compliance || 0}%
                           </div>
 
                           {/* Progress Bar Container */}
@@ -562,7 +596,10 @@ const Doctorlist = ({
                             <div
                               className="h-full bg-[#EEDF11]"
                               style={{
-                                width: "75%",
+                                width: `${patient.compliance || 0}%`,
+                                backgroundColor: getComplianceColor(
+                                  patient.compliance || 0
+                                ),
                                 backgroundImage: "url('/stripes.svg')",
                                 backgroundRepeat: "repeat",
                                 backgroundSize: "20px 20px",

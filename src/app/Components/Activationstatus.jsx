@@ -4,6 +4,9 @@ import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
@@ -34,7 +37,11 @@ const outfit = Outfit({
   variable: "--font-outfit", // optional CSS variable name
 });
 
-const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
+const Activationstatus = ({
+  isActivationstatus,
+  setisActivationstatus,
+  selectedpatuhidactivation,
+}) => {
   const useWindowSize = () => {
     const [size, setSize] = useState({
       width: 0,
@@ -63,6 +70,32 @@ const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
 
   const [mounted, setMounted] = useState(false);
 
+  const [patient, setPatient] = useState(null);
+
+  const [ques, setQues] = useState([]);
+  const [status, setStatus] = useState(null);
+
+  useEffect(() => {
+    if (!selectedpatuhidactivation) return;
+
+    const fetchPatientReminder = async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}get_admin_patient_activation_page/${selectedpatuhidactivation}`
+        );
+
+        const patientData = res.data.patient.activation_records;
+        setPatient(patientData);
+        setStatus(res.data.patient.activation_status);
+        // console.log("Fetched patient reminder data:", patientData);
+      } catch (err) {
+        console.error("Error fetching patient reminder:", err);
+      }
+    };
+
+    fetchPatientReminder();
+  }, [selectedpatuhidactivation]);
+
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
@@ -78,6 +111,50 @@ const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
   };
 
   const [comment, setcomment] = useState("");
+
+  const updatePatient = async (uhid) => {
+    if (!uhid) {
+      showWarning("UHID is required");
+      return;
+    }
+    if (!comment) {
+      showWarning("Comment is required");
+      return;
+    }
+    const update = {
+      activation_status: `${String(status) === "false" ? "true" : "false"}`,
+      activation_comment: `${
+        String(status) === "false" ? "Activation - " : "Deactivation - "
+      }${comment}`,
+    };
+
+    try {
+      const res = await axios.put(
+        `${API_URL}patients/update/${uhid}`,
+
+        update,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log("✅ Patient updated:", res.data);
+      showWarning(res.data.message || JSON.stringify(res.data));
+      return res.data;
+    } catch (error) {
+      console.error("❌ Error updating patient:", error);
+
+      // ✅ Handle error safely
+      if (error.response?.data?.message) {
+        showWarning(error.response.data.message);
+      } else {
+        showWarning(error.message || "Error updating patient");
+      }
+
+      throw error;
+    }
+  };
 
   if (!isActivationstatus || !mounted) return null;
 
@@ -143,12 +220,13 @@ const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
                       src={CloseIcon}
                       alt="Close"
                       className={`w-fit h-6 cursor-pointer`}
-                      onClick={() => setisActivationstatus(false)}
+                      onClick={() => {
+                        setisActivationstatus(false);
+                        setexpand(false);
+                      }}
                     />
                   </div>
                 </div>
-
-
               </div>
 
               <div
@@ -177,8 +255,6 @@ const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
               </div>
 
               <div className={`w-full flex flex-row`}>
-      
-
                 <div
                   className={`w-full flex flex-row gap-6 items-center ${
                     width < 700 ? "justify-between" : "justify-end"
@@ -198,10 +274,94 @@ const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
                     className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
                       outfit.className
                     } ${width < 700 ? "w-1/2" : "w-1/2"}`}
-                    onClick={() => {}}
+                    onClick={() => {
+                      updatePatient(selectedpatuhidactivation);
+                    }}
                   >
                     SEND
                   </button>
+                </div>
+              </div>
+
+              <div
+                className={`w-full flex gap-2 ${
+                  width >= 1200 ? "flex-col" : "flex-col"
+                }`}
+              >
+                <p
+                  className={`${outfit.className} text-lg font-normal text-black`}
+                >
+                  Activation Logs
+                </p>
+
+                <div
+                  className={`flex gap-4 ${
+                    width >= 1200 ? "w-full" : "w-full"
+                  } ${width < 700 ? "flex-col" : "flex-col"}`}
+                >
+                  <table
+                    className={`w-full ${inter.className} font-medium text-center text-black`}
+                  >
+                    <thead>
+                      <tr>
+                        <th className=" text-sm font-semibold text-black py-2">
+                          S. No
+                        </th>
+                        <th className=" text-sm font-semibold text-black py-2">
+                          Timestamp
+                        </th>
+                        <th className=" text-sm font-semibold text-black py-2">
+                          Comment
+                        </th>
+                        <th className=" text-sm font-semibold text-black py-2">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patient
+                        ?.slice() // make a copy to avoid mutating state
+                        .sort(
+                          (a, b) => new Date(b.recorded) - new Date(a.recorded)
+                        ) // ✅ latest first
+                        .map((item, index) => {
+                          // ✅ Convert to IST & format as dd/mm/yyyy - hh:mm
+                          const date = new Date(item.recorded);
+
+                          const formattedDate = date
+                            .toLocaleString("en-GB", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                            .replace(",", " -"); // "dd/mm/yyyy - hh:mm"
+
+                          // ✅ Status formatting
+                          const statusText = item.activation_status
+                            ? "Activated"
+                            : "Deactivated";
+
+                          return (
+                            <tr key={index}>
+                              <td className="py-2 text-sm text-center text-black">
+                                {index + 1}
+                              </td>
+                              <td className="py-2 text-sm text-black">
+                                {formattedDate}
+                              </td>
+                              <td className="py-2 text-sm text-black">
+                                {item.activation_comment}
+                              </td>
+                              <td className="py-2 text-sm text-black">
+                                {statusText}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -234,6 +394,16 @@ const Activationstatus = ({ isActivationstatus, setisActivationstatus }) => {
          }
        `}
       </style>
+
+      {showAlert && (
+        <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+          <div
+            className={`${poppins.className} bg-yellow-100 border border-red-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out`}
+          >
+            {alertMessage}
+          </div>
+        </div>
+      )}
     </div>,
     document.body // Render to body, outside constrained parent.
   );

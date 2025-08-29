@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import {
   BarChart,
   Bar,
@@ -15,7 +18,6 @@ import {
 
 import { Raleway, Inter, Poppins } from "next/font/google";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-
 
 import Patdocacc from "@/app/Assets/patdocacc.png";
 import Manavatar from "@/app/Assets/man.png";
@@ -74,7 +76,7 @@ const Patientlist = ({
   setisOpencompliance,
   isActivationstatus,
   setisActivationstatus,
-  handlenavigatereport
+  handlenavigatereport,
 }) => {
   const useWindowSize = () => {
     const [size, setSize] = useState({
@@ -100,6 +102,77 @@ const Patientlist = ({
 
   const { width, height } = useWindowSize();
 
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [selectedpatuhid, setselectedpatuhid] = useState(null);
+  const [selectedpatuhidactivation, setselectedpatuhidactivation] =
+    useState(null);
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        let adminUhid = null;
+
+        if (typeof window !== "undefined") {
+          adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
+        }
+
+        if (!adminUhid) {
+          setError("No admin UHID found in session");
+          setLoading(false);
+          return;
+        }
+
+        const res = await axios.get(
+          `${API_URL}patients-all-by-admin-uhid/${adminUhid}`
+        );
+        // console.log("✅ API Response:", res.data);
+
+        // setPatients1(res.data.patients || []);
+
+        const apiPatients = res.data.patients || [];
+
+        // 🔄 Map API data → static UI format
+        const mapped = apiPatients.map((p, i) => ({
+          name: p.Patient?.name || "Unknown",
+          age: p.Patient?.birthDate
+            ? new Date().getFullYear() -
+              new Date(p.Patient.birthDate).getFullYear()
+            : "NA",
+          gender:
+            p.Patient?.gender?.toLowerCase() === "male" ? "Male" : "Female",
+          uhid: p.uhid,
+          period: p.Patient_Status_Left || "NA", // you can decide logic here
+          period_right: p.Patient_Status_Right || "NA",
+          status: i % 3 === 0 ? "COMPLETED" : "PENDING", // or derive from API if you want
+          left_compliance: p.Medical_Left_Completion ?? 0,
+          right_compliance: p.Medical_Right_Completion ?? 0,
+          activation_status: p.Activation_Status ?? "True",
+
+          avatar:
+            p.Patient?.gender?.toLowerCase() === "male"
+              ? Manavatar
+              : Womanavatar,
+        }));
+
+        console.log("🔄 Mapped Patients:", mapped);
+        setPatients(mapped);
+      } catch (err) {
+        // console.error("❌ Error fetching patients:", err);
+        if (err.response) {
+          setError(err.response.data.detail || "Failed to fetch patients");
+        } else {
+          setError("Network error");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatients();
+  }, []);
+
   const [activeTab, setActiveTab] = useState("Patients");
 
   const tabs = ["Patients", "Doctors", "Profile"];
@@ -122,16 +195,6 @@ const Patientlist = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [completionstatus, setcompletionstatus] = useState("COMPLETED");
-
-  const patients = Array.from({ length: 50 }, (_, i) => ({
-    name: `Patient ${i + 1}`,
-    age: 20 + (i % 30), // age between 20–49
-    gender: i % 2 === 0 ? "Male" : "Female",
-    uhid: `UHID${1000 + i}`,
-    period: ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"][i % 6],
-    status: i % 3 === 0 ? "COMPLETED" : "PENDING",
-    avatar: i % 2 === 0 ? Manavatar : Womanavatar,
-  }));
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -211,6 +274,14 @@ const Patientlist = ({
   }, [isOpenaccpat, isOpenaccdoc]);
 
   const [shownotassigned, setshownotassigned] = useState(false);
+  const [selecteduhidcompliance, setselecteduhidcompliance] = useState(null);
+
+  function getComplianceColor(value) {
+    // value: 0–100
+    const green = Math.min(255, Math.floor((value / 100) * 255));
+    const red = 255 - green;
+    return `rgb(${red}, ${green}, 0)`; // 0–green, red decreases as value increases
+  }
 
   return (
     <>
@@ -751,7 +822,13 @@ const Patientlist = ({
                           : width < 530
                           ? "w-full"
                           : "w-[30%]"
-                      }`}
+                      } 
+                      ${
+                        !patient.activation_status
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }
+                      `}
                     >
                       <div
                         className={`flex gap-4 py-0 items-center ${
@@ -823,9 +900,14 @@ const Patientlist = ({
                           width < 710
                             ? "w-full text-center"
                             : "w-1/4 text-center"
-                        }`}
+                        }
+                        ${
+                        !patient.activation_status
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                       >
-                        UHID {patient.uhid}
+                        {patient.uhid}
                       </div>
 
                       <div
@@ -835,7 +917,12 @@ const Patientlist = ({
                           width < 750
                             ? "w-3/4 text-center"
                             : "w-1/4 text-center"
-                        }`}
+                        }
+                        ${
+                        !patient.activation_status
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                       >
                         {patient.period}
                       </div>
@@ -845,10 +932,18 @@ const Patientlist = ({
                           width < 750
                             ? "w-3/4 text-center"
                             : "w-1/4 text-center"
-                        }`}
+                        }
+                        ${
+                        !patient.activation_status
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                       >
-                        {shownotassigned ? (
+                        {patient.left_compliance === "NA" ? (
                           <div className="w-full flex flex-col items-end relative group">
+                            <div className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}>
+                              No questionnaires assigned
+                            </div>
                             <Image
                               src={Error}
                               alt="Not assigned"
@@ -870,22 +965,26 @@ const Patientlist = ({
                         ) : (
                           <div className="w-full flex flex-col items-center relative group">
                             {/* Hover Percentage Text */}
-                            <div className="absolute -top-7 left-0 transform translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black border-2 border-black px-3 rounded-lg">
-                              75%
+                            <div className={`${poppins.className} absolute -top-7 left-0 transform translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black border-2 border-black px-3 rounded-lg`}>
+                              {patient.left_compliance || 0}%
                             </div>
 
                             {/* Progress Bar Container */}
                             <div
-                              className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer"
+                              className={`relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer `}
                               onClick={() => {
                                 setisOpencompliance(true);
+                                setselecteduhidcompliance(patient.uhid);
                               }}
                             >
                               {/* Filled Progress */}
                               <div
-                                className="h-full bg-yellow-400"
+                                className="h-full"
                                 style={{
-                                  width: "75%",
+                                  width: `${patient.left_compliance || 0}%`,
+                                  backgroundColor: getComplianceColor(
+                                    patient.left_compliance||0
+                                  ),
                                   backgroundImage: "url('/stripes.svg')",
                                   backgroundRepeat: "repeat",
                                   backgroundSize: "20px 20px",
@@ -899,19 +998,34 @@ const Patientlist = ({
                       <div
                         className={` flex flex-row gap-4 ${
                           width < 750 ? "w-3/4 text-center" : "w-1/4"
-                        }`}
+                        }
+                        ${
+                        !patient.activation_status
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                       >
                         <div
                           className={`${
                             width < 750 ? "w-full text-center" : "w-full"
-                          }`}
+                          } ${
+                              patient.left_compliance === "NA"
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
                         >
                           <Image
                             src={Notify}
                             alt="Message"
-                            className={`w-6 h-6 mx-auto cursor-pointer`}
+                            className={`w-6 h-6 mx-auto ${
+                              patient.left_compliance === "NA" || !patient.activation_status
+                                ? "opacity-50 cursor-not-allowed"
+                                : "cursor-pointer"
+                            }`}
                             onClick={() => {
+                              if (patient.left_compliance === "NA" || !patient.activation_status) return; // 🔒 block click
                               setisOpenreminder(true);
+                              setselectedpatuhid(patient.uhid);
                             }}
                           />
                         </div>
@@ -925,7 +1039,12 @@ const Patientlist = ({
                         <div
                           className={`${
                             width < 750 ? "w-1/2 text-center" : "w-1/2"
-                          }`}
+                          }
+                          ${
+                        !patient.activation_status
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
                         >
                           <Image
                             src={Reportimg}
@@ -946,6 +1065,7 @@ const Patientlist = ({
                             className={`w-6 h-6 mx-auto cursor-pointer`}
                             onClick={() => {
                               setisActivationstatus(true);
+                              setselectedpatuhidactivation(patient.uhid);
                             }}
                           />
                         </div>
@@ -974,16 +1094,19 @@ const Patientlist = ({
       <Sendreminder
         isOpenreminder={isOpenreminder}
         onClosereminder={() => setisOpenreminder(false)}
+        selecteduhid={selectedpatuhid}
       />
 
       <Patientcompliance
         isOpencompliance={isOpencompliance}
         setisOpencompliance={() => setisOpencompliance(false)}
+        selecteduhidcompliance={selecteduhidcompliance}
       />
 
       <Activationstatus
         isActivationstatus={isActivationstatus}
         setisActivationstatus={setisActivationstatus}
+        selectedpatuhidactivation={selectedpatuhidactivation}
       />
 
       <style>

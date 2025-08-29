@@ -4,7 +4,12 @@ import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
+
+import { ArrowsRightLeftIcon } from "@heroicons/react/16/solid";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
 import ExpandIcon from "@/app/Assets/expand.png";
@@ -34,7 +39,7 @@ const outfit = Outfit({
   variable: "--font-outfit", // optional CSS variable name
 });
 
-const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
+const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
   const useWindowSize = () => {
     const [size, setSize] = useState({
       width: 0,
@@ -63,6 +68,79 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
 
   const [mounted, setMounted] = useState(false);
 
+  const [patient, setPatient] = useState(null);
+
+  const [ques, setQues] = useState([]);
+
+  const [followup, setFollowup] = useState([]);
+
+  const [phone, setPhone] = useState("");
+
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (!selecteduhid) return;
+
+    const fetchPatientReminder = async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}get_admin_patient_reminder_page/${selecteduhid}`
+        );
+
+        const patientData = res.data.patient;
+        setFollowup(res.data.patient.follow_up_records);
+        setPatient(patientData);
+        setPhone(res.data.patient.Patient.phone);
+        setEmail(res.data.patient.Patient.email);
+
+        // 🔄 Transform API data → ques format
+        const transformedQues = [];
+
+        // Helper to push questionnaires
+        const processSide = (sideObj, sideName) => {
+          if (!sideObj) return;
+
+          Object.entries(sideObj).forEach(([qName, periods]) => {
+            Object.entries(periods).forEach(([period, data]) => {
+              if (!data.completed) {
+                transformedQues.push({
+                  id: transformedQues.length + 1,
+                  name:
+                    qName === "OKS"
+                      ? "Oxford Knee Score"
+                      : qName === "SF12"
+                      ? "Short Form - 12"
+                      : qName === "FJS"
+                      ? "Forgotten Joint Score"
+                      : qName === "KOOS_JR"
+                      ? "Knee Injury and Osteoarthritis Outcome Score, Joint Replacement"
+                      : qName === "KSS"
+                      ? "Knee Society Score"
+                      : qName,
+                  period: period.replace("_", " "), // e.g., "Pre Op"
+                  deadline: data.deadline,
+                  completed: data.completed ? 1 : 0,
+                  side: sideName,
+                });
+              }
+            });
+          });
+        };
+
+        // Process both sides
+        processSide(patientData.Medical_Left, "Left");
+        processSide(patientData.Medical_Right, "Right");
+
+        console.log("📝 Incomplete Questionnaires:", transformedQues);
+        setQues(transformedQues); // replace your static ques
+      } catch (err) {
+        console.error("Error fetching patient reminder:", err);
+      }
+    };
+
+    fetchPatientReminder();
+  }, [selecteduhid]);
+
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
@@ -71,121 +149,53 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
 
+  const [remindermessage, setremindermessage] = useState("");
+  const [followupmessage, setfollowupmessage] = useState("");
+
+  const handleSubmit = async () => {
+    if (!selecteduhid.trim()) {
+      showWarning("UHID is required");
+      return;
+    }
+    if (!followupmessage.trim()) {
+      showWarning("Comment is required");
+      return;
+    }
+    const payload = {
+      uhid: selecteduhid,
+      comment: followupmessage,
+    };
+    console.log("Follow-up payload:", payload);
+    try {
+      const response = await axios.patch(
+        `${API_URL}patients/add-followup`,
+        payload
+      );
+      console.log("Follow-up added:", response.data);
+      showWarning("Follow-up added successfully!");
+    } catch (err) {
+      if (err.response) {
+        const msg =
+          err.response.data?.detail ||
+          err.response.data?.message ||
+          `Server Error: ${err.response.status}`;
+        showWarning(msg);
+      } else if (err.request) {
+        showWarning("No response from server. Please check your connection.");
+      } else {
+        showWarning(`Request failed: ${err.message}`);
+      }
+      console.error("Follow-up error:", err);
+    }
+  };
+
   const showWarning = (message) => {
     setAlertMessage(message);
     setShowAlert(true);
     setTimeout(() => setShowAlert(false), 4000);
   };
 
-  const ques = [
-    {
-      id: 1,
-      name: "Oxford Knee Score",
-      period: "1Y",
-      deadline: "2026-01-11",
-      completed: 0,
-    },
-    {
-      id: 2,
-      name: "KOOS JR",
-      period: "2Y",
-      deadline: "2027-07-27",
-      completed: 0,
-    },
-    {
-      id: 3,
-      name: "KOOS JR",
-      period: "Pre Op",
-      deadline: "2026-04-25",
-      completed: 1,
-    },
-    {
-      id: 4,
-      name: "Oxford Knee Score",
-      period: "2Y",
-      deadline: "2027-08-04",
-      completed: 0,
-    },
-    {
-      id: 5,
-      name: "KOOS JR",
-      period: "6M",
-      deadline: "2026-05-19",
-      completed: 1,
-    },
-    {
-      id: 6,
-      name: "Oxford Knee Score",
-      period: "Pre Op",
-      deadline: "2027-06-12",
-      completed: 1,
-    },
-    {
-      id: 7,
-      name: "FJS (Forgotten Joint Score)",
-      period: "3M",
-      deadline: "2027-07-13",
-      completed: 0,
-    },
-    {
-      id: 8,
-      name: "FJS (Forgotten Joint Score)",
-      period: "3M",
-      deadline: "2026-05-21",
-      completed: 1,
-    },
-    {
-      id: 9,
-      name: "KOOS JR",
-      period: "Pre Op",
-      deadline: "2026-08-30",
-      completed: 0,
-    },
-    {
-      id: 10,
-      name: "Oxford Knee Score",
-      period: "Pre Op",
-      deadline: "2026-10-13",
-      completed: 0,
-    },
-    {
-      id: 11,
-      name: "FJS (Forgotten Joint Score)",
-      period: "2Y",
-      deadline: "2026-07-26",
-      completed: 1,
-    },
-    {
-      id: 12,
-      name: "FJS (Forgotten Joint Score)",
-      period: "6M",
-      deadline: "2027-06-27",
-      completed: 1,
-    },
-    {
-      id: 13,
-      name: "SF-12 Health Survey",
-      period: "2Y",
-      deadline: "2025-11-28",
-      completed: 0,
-    },
-    {
-      id: 14,
-      name: "SF-12 Health Survey",
-      period: "3M",
-      deadline: "2026-10-19",
-      completed: 1,
-    },
-    {
-      id: 15,
-      name: "FJS (Forgotten Joint Score)",
-      period: "Pre Op",
-      deadline: "2026-05-07",
-      completed: 1,
-    },
-  ];
-
-  const [remindermessage, setremindermessage] = useState("");
+  const [switchcont, setSwitchcont] = useState(false);
 
   if (!isOpenreminder || !mounted) return null;
 
@@ -220,13 +230,28 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
             >
               <div className={`w-full flex flex-col gap-1`}>
                 <div className="flex flex-row justify-between items-center w-full">
-                  <p
-                    className={`${inter.className} text-2xl font-semibold text-black`}
-                  >
-                    Patient Name
-                  </p>
                   <div
-                    className={`flex flex-row gap-4 items-center justify-center`}
+                    className={`${outfit.className} text-lg font-normal text-black/80 w-1/3 gap-2`}
+                  >
+                    <p className={`text-2xl font-semibold text-black`}>
+                      {patient?.Patient?.name || "Patient Name"}
+                    </p>
+                    <p className={`text-lg font-normal text-black/80`}>
+                      {patient?.uhid || "Patient ID"}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`${raleway.className} w-1/3 flex flex-col items-center gap-1 text-black font-semibold`}
+                  >
+                    {!switchcont ? "Follow Up" : "Reminder"}
+                    <ArrowsRightLeftIcon
+                      className={`w-6 h-6 text-black cursor-pointer`}
+                      onClick={() => setSwitchcont(!switchcont)}
+                    />
+                  </div>
+                  <div
+                    className={`flex flex-row gap-4 items-center justify-end w-1/3`}
                   >
                     {expand ? (
                       <Image
@@ -251,7 +276,13 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                       src={CloseIcon}
                       alt="Close"
                       className={`w-fit h-6 cursor-pointer`}
-                      onClick={() => onClosereminder()}
+                      onClick={() => {
+                        onClosereminder();
+                        setSwitchcont(false);
+                        setremindermessage("");
+                        setfollowupmessage("");
+                        setexpand(false);
+                      }}
                     />
                   </div>
                 </div>
@@ -260,12 +291,40 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                   className={`flex flex-col gap-2 ${
                     width < 700 ? "w-full" : "w-full"
                   }`}
+                ></div>
+              </div>
+
+              <div
+                className={`w-full flex gap-2 ${
+                  width >= 1200 ? "flex-col" : "flex-col"
+                }`}
+              >
+                <p
+                  className={`${outfit.className} text-lg font-normal text-black`}
                 >
-                  <p
-                    className={` ${outfit.className} font-normal text-base text-black/80`}
-                  >
-                    Patient ID
-                  </p>
+                  {!switchcont ? "Reminder" : "Add Follow Up Comment"}
+                </p>
+
+                <div
+                  className={`${poppins.className} flex gap-4 ${
+                    width >= 1200 ? "w-full" : "w-full"
+                  } ${width < 700 ? "flex-col" : "flex-col"}`}
+                >
+                  {!switchcont ? (
+                    <textarea
+                      rows={10}
+                      value={remindermessage}
+                      onChange={(e) => setremindermessage(e.target.value)}
+                      className="px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black"
+                    />
+                  ) : (
+                    <textarea
+                      rows={10}
+                      value={followupmessage}
+                      onChange={(e) => setfollowupmessage(e.target.value)}
+                      className="px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -277,7 +336,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                 <p
                   className={`${outfit.className} text-lg font-normal text-black`}
                 >
-                  Pending
+                  {!switchcont ? "Pending" : "Follow Up"}
                 </p>
 
                 <div
@@ -285,63 +344,99 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                     width >= 1200 ? "w-full" : "w-full"
                   } ${width < 700 ? "flex-col" : "flex-col"}`}
                 >
-                  <table
-                    className={`w-full ${inter.className} font-medium text-center text-black`}
-                  >
-                    <thead>
-                      <tr>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          S. No
-                        </th>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          Period
-                        </th>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          Name
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ques.map((item, index) => (
-                        <tr key={index}>
-                          <td className="py-2 text-sm text-center text-black">
-                            {index + 1}
-                          </td>
-                          <td className="py-2 text-sm text-black">
-                            {item.period}
-                          </td>
-                          <td className="py-2 text-sm text-black">
-                            {item.name}
-                          </td>
+                  {!switchcont ? (
+                    <table
+                      className={`w-full ${inter.className} font-medium text-center text-black`}
+                    >
+                      <thead>
+                        <tr>
+                          <th className=" text-sm font-semibold text-black py-2">
+                            S. No
+                          </th>
+                          <th className=" text-sm font-semibold text-black py-2">
+                            Period
+                          </th>
+                          <th className=" text-sm font-semibold text-black py-2">
+                            Name
+                          </th>
+                          <th className=" text-sm font-semibold text-black py-2">
+                            Side
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                      </thead>
+                      <tbody>
+                        {ques.map((item, index) => (
+                          <tr key={index}>
+                            <td className="py-2 text-sm text-center text-black">
+                              {index + 1}
+                            </td>
+                            <td className="py-2 text-sm text-black">
+                              {item.period}
+                            </td>
+                            <td className="py-2 text-sm text-black">
+                              {item.name}
+                            </td>
+                            <td className="py-2 text-sm text-black">
+                              {item.side}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table
+                      className={`w-full ${inter.className} font-medium text-center text-black`}
+                    >
+                      <thead>
+                        <tr>
+                          <th className="text-sm font-semibold text-black py-2">
+                            S. No
+                          </th>
+                          <th className="text-sm font-semibold text-black py-2">
+                            Timestamp
+                          </th>
+                          <th className="text-sm font-semibold text-black py-2">
+                            Follow Up Comment
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {followup
+                          ?.slice() // make a copy to avoid mutating state
+                          .sort(
+                            (a, b) =>
+                              new Date(b.recorded) - new Date(a.recorded)
+                          ) // latest first
+                          .map((item, index) => {
+                            const date = new Date(item.recorded);
 
-              <div
-                className={`w-full flex gap-2 ${
-                  width >= 1200 ? "flex-col" : "flex-col"
-                }`}
-              >
-                <p
-                  className={`${outfit.className} text-lg font-normal text-black`}
-                >
-                  Reminder
-                </p>
+                            const formattedDate = date
+                              .toLocaleString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                              .replace(",", " -");
 
-                <div
-                  className={`flex gap-4 ${
-                    width >= 1200 ? "w-full" : "w-full"
-                  } ${width < 700 ? "flex-col" : "flex-col"}`}
-                >
-                  <textarea
-                    rows={10}
-                    value={remindermessage}
-                    onChange={(e) => setremindermessage(e.target.value)}
-                    className="px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black"
-                  />
+                            return (
+                              <tr key={index}>
+                                <td className="py-2 text-sm text-center text-black">
+                                  {index + 1}
+                                </td>
+                                <td className="py-2 text-sm text-black">
+                                  {formattedDate}
+                                </td>
+                                <td className="py-2 text-sm text-black">
+                                  {item.follow_up_comment}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
 
@@ -351,13 +446,14 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                     width < 700 ? "justify-between" : "justify-start"
                   }`}
                 >
-                  <button
-                    className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
+                  <a
+                    href={`tel:${phone}`}
+                    className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer flex justify-center items-center ${
                       outfit.className
                     } ${width < 700 ? "w-1/2" : "w-1/3"}`}
                   >
                     CALL
-                  </button>
+                  </a>
                 </div>
 
                 <div
@@ -369,7 +465,13 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                     className={`text-black/80 font-normal ${
                       outfit.className
                     } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/3"}`}
-                    onClick={()=>{setremindermessage("")}}
+                    onClick={() => {
+                      if (!switchcont) {
+                        setremindermessage("");
+                      } else {
+                        setfollowupmessage("");
+                      }
+                    }}
                   >
                     Clear All
                   </button>
@@ -378,6 +480,10 @@ const Sendreminder = ({ isOpenreminder, onClosereminder }) => {
                       outfit.className
                     } ${width < 700 ? "w-1/2" : "w-1/3"}`}
                     onClick={() => {
+                      if (!switchcont) {
+                      } else {
+                        handleSubmit();
+                      }
                     }}
                   >
                     SEND

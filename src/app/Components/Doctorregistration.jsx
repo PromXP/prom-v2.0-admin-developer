@@ -4,6 +4,9 @@ import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
@@ -60,6 +63,30 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
   const { width, height } = useWindowSize();
 
   const [showAlert, setShowAlert] = useState(false);
+  const [adminemail, setAdminEmail] = useState("");
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      let adminUhid = null;
+
+      if (typeof window !== "undefined") {
+        adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
+      }
+      try {
+        const res = await axios.get(`${API_URL}getadminname/${adminUhid}`);
+        setAdminEmail(res.data.email);
+      } catch (err) {
+        // console.error("❌ Error fetching patients:", err);
+        if (err.response) {
+          setError(err.response.data.detail || "Failed to fetch patients");
+        } else {
+          setError("Network error");
+        }
+      }
+    };
+
+    fetchPatients();
+  }, []);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -69,7 +96,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedGender, setSelectedGender] = useState(""); // "female" | "male" | "other"
+  const [selectedGender, setSelectedGender] = useState("Male"); // "female" | "male" | "other"
   const [age, setAge] = useState(0);
   const [selectedOptiondrop, setSelectedOptiondrop] = useState("NN");
 
@@ -87,7 +114,6 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
         value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
     }
 
-    // Until full date entered, show raw value
     setSelectedDate(value);
 
     if (value.length === 10) {
@@ -134,12 +160,8 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
         return;
       }
 
-      // If all valid, format as "dd Mmm yyyy"
-      const formattedDate = manualDate.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
+      // ✅ Format as dd-mm-yyyy
+      const formattedDate = `${String(manualDate.getDate()).padStart(2, "0")}-${String(manualDate.getMonth() + 1).padStart(2, "0")}-${manualDate.getFullYear()}`;
 
       setSelectedDate(formattedDate);
     }
@@ -148,6 +170,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
   const [opendrop, setOpendrop] = useState(false);
 
   const optionsdrop = [
+    "NN",
     "A+",
     "A−",
     "B+",
@@ -211,16 +234,72 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
     setFirstName("");
     setLastName("");
     setueid("");
-    setSelectedGender("");
+    setSelectedGender("Male");
     setSelectedOptiondrop("NN");
     setPhone("");
     setEmail("");
     setdesignation("");
     setmedicalcouncilnumber("");
-
+    setSelectedDate("");
   };
 
   const [alertMessage, setAlertMessage] = useState("");
+
+  const handleSubmit = async () => {
+    let adminUhid = "";
+    // ✅ List of fields to validate
+    if (typeof window !== "undefined") {
+      adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
+    }
+    const requiredFields = [
+      { value: firstName, message: "First Name is required" },
+      { value: lastName, message: "Last Name is required" },
+      { value: selectedGender, message: "Gender is required" },
+      { value: selectedDate, message: "Date of Birth is required" },
+      { value: designation, message: "Designation is required" },
+      { value: ueid, message: "Doctor UEID is required" },
+      { value: adminemail, message: "Admin Email is required" },
+      {
+        value: medicalcouncilnumber,
+        message: "Medical Council Number is required",
+      },
+    ];
+
+    // ✅ Validate fields
+    for (let field of requiredFields) {
+      if (
+        !field.value ||
+        (Array.isArray(field.value) && field.value.length === 0)
+      ) {
+        showWarning(field.message);
+        return;
+      }
+    }
+
+    const payload = {
+      doctor_name: `${firstName} ${lastName}`,
+      gender: selectedGender.toLowerCase(),
+      dob: selectedDate,
+      email: email || "sample@gmail.com",
+      designation: designation,
+      uhid: ueid,
+      phone_number: phone || "NA",
+      blood_group: selectedOptiondrop || "NA",
+      password: "doctor@123", // set or generate
+      admin_created: adminemail, // pass logged-in admin email
+      profile_picture_url: "NA",
+      doctor_council_number: medicalcouncilnumber,
+    };
+    console.log("Submitting payload:", payload);
+    try {
+      const res = await axios.post(`${API_URL}registerdoctor`, payload);
+      console.log("✅ Doctor created:", res.data);
+      showWarning("Doctor created successfully!");
+    } catch (err) {
+      console.error("❌ Error creating doctor:", err);
+      showWarning("Failed to create doctor.");
+    }
+  };
 
   const showWarning = (message) => {
     setAlertMessage(message);
@@ -640,13 +719,11 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     width >= 1200 ? "w-full" : "w-full"
                   }`}
                 >
-
-
                   <div className={`w-full flex flex-col gap-2`}>
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Phone Number *
+                      Phone Number
                     </p>
                     <input
                       type="text"
@@ -665,7 +742,6 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       onChange={(e) => setPhone(e.target.value)}
                     />
                   </div>
-
                 </div>
               </div>
 
@@ -675,9 +751,9 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                 }`}
               >
                 <button
-                  className={`text-black/80 font-normal ${outfit.className} cursor-pointer ${
-                    width < 700 ? "w-1/2" : "w-1/7"
-                  }`}
+                  className={`text-black/80 font-normal ${
+                    outfit.className
+                  } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/7"}`}
                   onClick={clearAllFields}
                 >
                   Clear All
@@ -687,9 +763,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     outfit.className
                   } ${width < 700 ? "w-1/2" : "w-1/7"}`}
                   onClick={() => {
-                    // Handle form submission logic here
-                    setSuccess("Patient registered successfully!");
-                    setError("");
+                    handleSubmit();
                   }}
                 >
                   CREATE
