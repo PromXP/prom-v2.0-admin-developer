@@ -100,7 +100,7 @@ const page = () => {
     return "Patients";
   });
 
-  const tabs = ["Patients", "Doctors", "Report"];
+  const tabs = ["Patients", "Doctors"];
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFullyHidden, setIsFullyHidden] = useState(true); // for hidden toggle

@@ -512,8 +512,8 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         idproof: selectedIDs,
         patient_current_status:
         selectedKnees.length > 0 ? selectedKnees.join(", ") : "NONE",
-        surgery_date_left: selectedKnees.includes("LEFT") ? surgerydate : "",
-        surgery_date_right: selectedKnees.includes("RIGHT") ? surgerydate : "",
+        surgery_date_left: selectedKnees.includes("LEFT") ? surgerydate : "0001-01-01",
+        surgery_date_right: selectedKnees.includes("RIGHT") ? surgerydate : "0001-01-01",
       },
     };
 

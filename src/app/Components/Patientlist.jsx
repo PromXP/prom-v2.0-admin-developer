@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 
 import axios from "axios";
@@ -108,6 +108,9 @@ const Patientlist = ({
   const [selectedpatuhid, setselectedpatuhid] = useState(null);
   const [selectedpatuhidactivation, setselectedpatuhidactivation] =
     useState(null);
+  if (typeof window !== "undefined") {
+    sessionStorage.removeItem("patientreportid");
+  }
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -149,6 +152,11 @@ const Patientlist = ({
           left_compliance: p.Medical_Left_Completion ?? 0,
           right_compliance: p.Medical_Right_Completion ?? 0,
           activation_status: p.Activation_Status ?? "True",
+          left_questionnaires: p.Medical_Left ?? "NA",
+          right_questionnaires: p.Medical_Right ?? "NA",
+          patient_initial_status: p.patient_current_status ?? "NA",
+          surgery_left: p.Medical?.surgery_date_left ?? "NA",
+          surgery_right: p.Medical?.surgery_date_right ?? "NA",
 
           avatar:
             p.Patient?.gender?.toLowerCase() === "male"
@@ -194,7 +202,6 @@ const Patientlist = ({
   const [selectedStatus, setSelectedStatus] = useState("All Patients");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [completionstatus, setcompletionstatus] = useState("COMPLETED");
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -203,10 +210,11 @@ const Patientlist = ({
   const [operativePeriod, setOperativePeriod] = useState("all");
   const [subOperativePeriod, setSubOperativePeriod] = useState("all");
   const [completionStatus, setCompletionStatus] = useState("all");
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0]; // format: yyyy-mm-dd
-  });
+  const [selectedDate, setSelectedDate] = useState("");
+  const today = new Date();
+  const [selectedMonth, setselectedMonth] = useState(today.getMonth() + 1); // 1–12
+  const [selectedYear, setselectedYear] = useState(today.getFullYear());
+
   const [sortOrder, setSortOrder] = useState("low_to_high");
 
   // Handlers
@@ -216,7 +224,9 @@ const Patientlist = ({
     setSubOperativePeriod("all");
     setCompletionStatus("all");
     setSortOrder("low_to_high");
-    setSelectedDate(" ");
+    setSelectedDate("");
+    setselectedMonth("");
+    setselectedYear(today.getFullYear());
   };
 
   const handleApply = () => {
@@ -225,13 +235,177 @@ const Patientlist = ({
     setDropdownOpen(false);
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const filteredPatients = patients.filter((patient) => {
+    // 1️⃣ Side filter
+    if (side) {
+      const surgeryDate =
+        side === "left" ? patient.surgery_left : patient.surgery_right;
 
-  const totalPages = Math.ceil(patients.length / rowsPerPage);
+      // ❌ filter out if surgery date is missing or "NA"
+      if (!surgeryDate || surgeryDate === "NA") return false;
+    }
+
+    if (operativePeriod && operativePeriod !== "all") {
+      if (
+        operativePeriod === "pre-op" &&
+        ((side === "left" && patient.period?.toLowerCase() !== "pre op") ||
+          (side === "right" &&
+            patient.period_right?.toLowerCase() !== "pre op"))
+      ) {
+        return false;
+      }
+
+      if (operativePeriod === "post-op") {
+        if (
+          (side === "left" && patient.period?.toLowerCase() !== "post-op") ||
+          (side === "right" &&
+            patient.period_right?.toLowerCase() !== "post-op")
+        ) {
+          return false;
+        }
+
+        if (subOperativePeriod && subOperativePeriod !== "all") {
+          // Just check if patient has a period matching the sub-period label
+          if (
+            (side === "left" &&
+              patient.period?.toLowerCase() !==
+                subOperativePeriod.toLowerCase()) ||
+            (side === "right" &&
+              patient.period_right?.toLowerCase() !==
+                subOperativePeriod.toLowerCase())
+          ) {
+            return false;
+          }
+        }
+      }
+    }
+
+    // 3️⃣ Completion Status filter
+    if (completionStatus && completionStatus !== "all") {
+      const compliance =
+        side === "left" ? patient.left_compliance : patient.right_compliance;
+      if (completionStatus === "not_assigned" && compliance !== "NA")
+        return false;
+      if (
+        completionStatus === "pending" &&
+        (compliance === "NA" || compliance === 100)
+      )
+        return false;
+      if (
+        completionStatus === "completed" &&
+        (compliance === "NA" || compliance < 100)
+      )
+        return false;
+    }
+
+    // 2️⃣ Determine which questionnaires to check
+    const qData =
+      side === "left"
+        ? patient.left_questionnaires
+        : patient.right_questionnaires;
+
+    // 3️⃣ Date filter (only if selectedDate is set)
+    if (selectedDate) {
+      const selected = new Date(selectedDate).toISOString().split("T")[0];
+
+      const hasMatching = Object.values(qData || {}).some(
+        (q) =>
+          q &&
+          typeof q === "object" &&
+          Object.values(q).some((period) => {
+            if (!period?.deadline) return false;
+            const deadline = new Date(period.deadline)
+              .toISOString()
+              .split("T")[0];
+            return deadline === selected;
+          })
+      );
+
+      if (!hasMatching) return false;
+    }
+    // 4️⃣ Month-Year filter (only if selectedDate is NOT set)
+    else if (selectedMonth && selectedYear) {
+      const month = Number(selectedMonth); // 1 → January
+      const year = Number(selectedYear);
+
+      console.log("Right questionnaire", qData);
+
+      const hasMatching = Object.values(qData || {}).some(
+        (q) =>
+          q &&
+          typeof q === "object" &&
+          Object.values(q).some((period) => {
+            if (!period?.deadline) return false;
+            const deadline = new Date(period.deadline);
+            return (
+              deadline.getFullYear() === year &&
+              deadline.getMonth() + 1 === month
+            );
+          })
+      );
+
+      if (!hasMatching) return false;
+    }
+    return true;
+  });
+
+  const getNearestDeadline = (patient, side) => {
+    const qData =
+      side === "left"
+        ? patient.left_questionnaires
+        : patient.right_questionnaires;
+
+    let deadlines = [];
+
+    Object.values(qData || {}).forEach((q) => {
+      if (q && typeof q === "object") {
+        Object.values(q).forEach((period) => {
+          if (period?.deadline) deadlines.push(new Date(period.deadline));
+        });
+      }
+    });
+
+    if (deadlines.length === 0) return null;
+
+    // Return the earliest deadline
+    return new Date(Math.min(...deadlines));
+  };
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+
+
+  const searchedPatients = patients.filter((patient) => {
+    if (!searchTerm) return true; // no search applied
+    const term = searchTerm.toLowerCase();
+    return (
+      patient.name.toLowerCase().includes(term) ||
+      patient.uhid.toLowerCase().includes(term)
+    );
+  });
+
+  const sortedPatients = filteredPatients.sort((a, b) => {
+    const aDeadline = getNearestDeadline(a, side);
+    const bDeadline = getNearestDeadline(b, side);
+
+    if (!aDeadline) return 1; // if a has no deadlines, push it to the end
+    if (!bDeadline) return -1; // if b has no deadlines, push it to the end
+
+    if (sortOrder === "low_to_high") {
+      return aDeadline - bDeadline; // nearest first
+    } else {
+      return bDeadline - aDeadline; // farthest first
+    }
+  });
+
+  // Use searchedPatients if searchTerm exists, otherwise filteredPatients
+  const displayedPatients = searchTerm ? searchedPatients : sortedPatients;
+
+  const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
+
 
   // Slice the data
-  const paginatedPatients = patients.slice(
+  const paginatedPatients = displayedPatients.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
@@ -282,6 +456,22 @@ const Patientlist = ({
     const red = 255 - green;
     return `rgb(${red}, ${green}, 0)`; // 0–green, red decreases as value increases
   }
+
+  // inside your component
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <>
@@ -468,7 +658,8 @@ const Patientlist = ({
                 }`}
               >
                 <p
-                  className={`${raleway.className} text-[#2B2B2B] font-semibold text-sm w-1/7`}
+                  className={`${raleway.className} text-[#2B2B2B] font-semibold text-sm w-1/7 cursor-pointer`}
+                  onClick={handleClearAll}
                 >
                   Clear All
                 </p>
@@ -498,7 +689,10 @@ const Patientlist = ({
                 </div>
 
                 {/* Dropdown SVG Button */}
-                <div className={`${raleway.className} relative`}>
+                <div
+                  ref={dropdownRef}
+                  className={`${raleway.className} relative`}
+                >
                   <div
                     className="bg-white rounded-lg p-3 cursor-pointer"
                     onClick={() => setDropdownOpen((prev) => !prev)}
@@ -649,6 +843,56 @@ const Patientlist = ({
                         />
                       </div>
 
+                      {/* Custom Month-Year Picker */}
+                      <div className="mb-4 w-full max-w-xs">
+                        <p className="font-semibold mb-1">
+                          Select Month & Year
+                        </p>
+                        <div className="flex gap-2">
+                          {/* Month Dropdown */}
+                          <select
+                            value={selectedMonth}
+                            onChange={(e) => setselectedMonth(e.target.value)}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-1/2"
+                          >
+                            {[
+                              "Jan",
+                              "Feb",
+                              "Mar",
+                              "Apr",
+                              "May",
+                              "Jun",
+                              "Jul",
+                              "Aug",
+                              "Sep",
+                              "Oct",
+                              "Nov",
+                              "Dec",
+                            ].map((month, idx) => (
+                              <option key={idx} value={idx + 1}>
+                                {month}
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* Year Dropdown */}
+                          <select
+                            value={selectedYear}
+                            onChange={(e) => setselectedYear(e.target.value)}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-1/2"
+                          >
+                            {Array.from({ length: 10 }, (_, i) => {
+                              const year = new Date().getFullYear() + i;
+                              return (
+                                <option key={year} value={year}>
+                                  {year}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
                       {/* Sort */}
                       <div>
                         <p className="font-semibold mb-1">Sort</p>
@@ -737,7 +981,7 @@ const Patientlist = ({
                     setCurrentPage(1); // Reset to first page
                   }}
                 >
-                  {generatePageOptions(patients.length).map((count) => (
+                  {generatePageOptions(filteredPatients.length).map((count) => (
                     <option key={count} value={count}>
                       {count}
                     </option>
@@ -805,274 +1049,290 @@ const Patientlist = ({
                   width >= 1000 ? "overflow-y-auto" : ""
                 }`}
               >
-                {paginatedPatients.map((patient, index) => (
-                  <div
-                    key={index}
-                    className={`w-full rounded-lg flex  px-3 bg-white ${
-                      width < 530
-                        ? "flex-col justify-center items-center gap-2 py-3"
-                        : "flex-row justify-between items-center py-1.5"
-                    } ${width < 1000 ? "mb-2" : "mb-6"}`}
-                  >
-                    {/* LEFT - Avatar + Name + Age */}
+                {paginatedPatients.length !== 0 ? (
+                  paginatedPatients.map((patient, index) => (
                     <div
-                      className={`${
-                        width < 640 && width >= 530
-                          ? "w-3/5"
-                          : width < 530
-                          ? "w-full"
-                          : "w-[30%]"
-                      } 
-                      ${
-                        !patient.activation_status
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }
-                      `}
+                      key={index}
+                      className={`w-full rounded-lg flex px-3 bg-white ${
+                        width < 530
+                          ? "flex-col justify-center items-center gap-2 py-3"
+                          : "flex-row justify-between items-center py-1.5"
+                      } ${width < 1000 ? "mb-2" : "mb-6"}`}
                     >
+                      {/* LEFT - Avatar + Name + Age */}
                       <div
-                        className={`flex gap-4 py-0 items-center ${
-                          width < 710 && width >= 640
-                            ? "px-0 flex-row"
+                        className={`${
+                          width < 640 && width >= 530
+                            ? "w-3/5"
                             : width < 530
-                            ? "flex-col justify-center items-center"
-                            : "px-2 flex-row"
+                            ? "w-full"
+                            : "w-[30%]"
+                        } ${
+                          !patient.activation_status
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
                         }`}
                       >
-                        <Image
-                          src={patient.avatar}
-                          alt="Avatar"
-                          width={40}
-                          height={40}
-                          className={`rounded-full cursor-pointer ${
-                            width < 530 ? "w-11 h-11" : "w-10 h-10"
-                          }`}
-                        />
                         <div
-                          className={`w-full flex items-center ${
-                            width < 710 ? "flex-col" : "flex-row"
+                          className={`flex gap-4 py-0 items-center ${
+                            width < 710 && width >= 640
+                              ? "px-0 flex-row"
+                              : width < 530
+                              ? "flex-col justify-center items-center"
+                              : "px-2 flex-row"
                           }`}
                         >
+                          <Image
+                            src={patient.avatar}
+                            alt="Avatar"
+                            width={40}
+                            height={40}
+                            className={`rounded-full cursor-pointer ${
+                              width < 530 ? "w-11 h-11" : "w-10 h-10"
+                            }`}
+                          />
                           <div
-                            className={`flex flex-col ${
-                              width < 710 ? "w-full gap-2" : "w-[70%] gap-4"
+                            className={`w-full flex items-center ${
+                              width < 710 ? "flex-col" : "flex-row"
                             }`}
                           >
-                            <div className="flex items-center justify-between">
-                              <p
-                                className={`${
-                                  raleway.className
-                                } text-[#475467] font-semibold text-lg ${
-                                  width < 530 ? "w-full text-center" : ""
-                                }`}
-                              >
-                                {patient.name}
-                              </p>
-                            </div>
-                            <p
-                              className={`${
-                                poppins.className
-                              } font-normal text-sm text-[#475467] ${
-                                width < 530 ? "text-center" : "text-start"
+                            <div
+                              className={`flex flex-col ${
+                                width < 710 ? "w-full gap-2" : "w-[70%] gap-4"
                               }`}
                             >
-                              {patient.age}, {patient.gender}
-                            </p>
+                              <div className="flex items-center justify-between">
+                                <p
+                                  className={`${
+                                    raleway.className
+                                  } text-[#475467] font-semibold text-lg ${
+                                    width < 530 ? "w-full text-center" : ""
+                                  }`}
+                                >
+                                  {patient.name}
+                                </p>
+                              </div>
+                              <p
+                                className={`${
+                                  poppins.className
+                                } font-normal text-sm text-[#475467] ${
+                                  width < 530 ? "text-center" : "text-start"
+                                }`}
+                              >
+                                {patient.age}, {patient.gender}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* RIGHT - UHID + Period + Status + Report Icon */}
-                    <div
-                      className={`flex items-center ${
-                        width < 640 && width >= 530
-                          ? "w-2/5 flex-col text-center gap-4"
-                          : width < 530
-                          ? "w-full flex-col text-center gap-4"
-                          : "w-[70%] flex-row justify-between"
-                      }`}
-                    >
+                      {/* RIGHT - UHID + Period + Status + Report Icon */}
                       <div
-                        className={`${
-                          poppins.className
-                        } text-base font-medium text-[#475467] ${
-                          width < 710
-                            ? "w-full text-center"
-                            : "w-1/4 text-center"
-                        }
-                        ${
-                        !patient.activation_status
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }`}
+                        className={`flex items-center ${
+                          width < 640 && width >= 530
+                            ? "w-2/5 flex-col text-center gap-4"
+                            : width < 530
+                            ? "w-full flex-col text-center gap-4"
+                            : "w-[70%] flex-row justify-between"
+                        }`}
                       >
-                        {patient.uhid}
-                      </div>
-
-                      <div
-                        className={`${
-                          inter.className
-                        } text-[15px] font-semibold text-[#373737] ${
-                          width < 750
-                            ? "w-3/4 text-center"
-                            : "w-1/4 text-center"
-                        }
-                        ${
-                        !patient.activation_status
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }`}
-                      >
-                        {patient.period}
-                      </div>
-
-                      <div
-                        className={`flex flex-col items-center justify-center ${
-                          width < 750
-                            ? "w-3/4 text-center"
-                            : "w-1/4 text-center"
-                        }
-                        ${
-                        !patient.activation_status
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }`}
-                      >
-                        {patient.left_compliance === "NA" ? (
-                          <div className="w-full flex flex-col items-end relative group">
-                            <div className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}>
-                              No questionnaires assigned
-                            </div>
-                            <Image
-                              src={Error}
-                              alt="Not assigned"
-                              className={`w-6 h-6`}
-                            />
-                            <div className="relative w-full h-1.5 overflow-hidden bg-white cursor-pointer">
-                              {/* Filled Progress */}
-                              <div
-                                className="h-full bg-[#E5E5E5]"
-                                style={{
-                                  width: "100%",
-                                  backgroundImage: "url('/stripes.svg')",
-                                  backgroundRepeat: "repeat",
-                                  backgroundSize: "20px 20px",
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full flex flex-col items-center relative group">
-                            {/* Hover Percentage Text */}
-                            <div className={`${poppins.className} absolute -top-7 left-0 transform translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black border-2 border-black px-3 rounded-lg`}>
-                              {patient.left_compliance || 0}%
-                            </div>
-
-                            {/* Progress Bar Container */}
-                            <div
-                              className={`relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer `}
-                              onClick={() => {
-                                setisOpencompliance(true);
-                                setselecteduhidcompliance(patient.uhid);
-                              }}
-                            >
-                              {/* Filled Progress */}
-                              <div
-                                className="h-full"
-                                style={{
-                                  width: `${patient.left_compliance || 0}%`,
-                                  backgroundColor: getComplianceColor(
-                                    patient.left_compliance||0
-                                  ),
-                                  backgroundImage: "url('/stripes.svg')",
-                                  backgroundRepeat: "repeat",
-                                  backgroundSize: "20px 20px",
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div
-                        className={` flex flex-row gap-4 ${
-                          width < 750 ? "w-3/4 text-center" : "w-1/4"
-                        }
-                        ${
-                        !patient.activation_status
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }`}
-                      >
+                        {/* UHID */}
                         <div
                           className={`${
-                            width < 750 ? "w-full text-center" : "w-full"
+                            poppins.className
+                          } text-base font-medium text-[#475467] ${
+                            width < 710
+                              ? "w-full text-center"
+                              : "w-1/4 text-center"
                           } ${
+                            !patient.activation_status
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          {patient.uhid}
+                        </div>
+
+                        {/* Period */}
+                        <div
+                          className={`${
+                            inter.className
+                          } text-[15px] font-semibold text-[#373737] ${
+                            width < 750
+                              ? "w-3/4 text-center"
+                              : "w-1/4 text-center"
+                          } ${
+                            !patient.activation_status
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          {patient.period}
+                        </div>
+
+                        {/* Compliance */}
+                        <div
+                          className={`flex flex-col items-center justify-center ${
+                            width < 750
+                              ? "w-3/4 text-center"
+                              : "w-1/4 text-center"
+                          } ${
+                            !patient.activation_status
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          {patient.left_compliance === "NA" ? (
+                            <div className="w-full flex flex-col items-end relative group">
+                              <div
+                                className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}
+                              >
+                                No questionnaires assigned
+                              </div>
+                              <Image
+                                src={Error}
+                                alt="Not assigned"
+                                className="w-6 h-6"
+                              />
+                              <div className="relative w-full h-1.5 overflow-hidden bg-white cursor-pointer">
+                                <div
+                                  className="h-full bg-[#E5E5E5]"
+                                  style={{
+                                    width: "100%",
+                                    backgroundImage: "url('/stripes.svg')",
+                                    backgroundRepeat: "repeat",
+                                    backgroundSize: "20px 20px",
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-full flex flex-col items-center relative group">
+                              <div
+                                className={`${poppins.className} absolute -top-7 left-0 transform translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black border-2 border-black px-3 rounded-lg`}
+                              >
+                                {patient.left_compliance || 0}%
+                              </div>
+                              <div
+                                className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer"
+                                onClick={() => {
+                                  setisOpencompliance(true);
+                                  setselecteduhidcompliance(patient.uhid);
+                                }}
+                              >
+                                <div
+                                  className="h-full"
+                                  style={{
+                                    width: `${patient.left_compliance || 0}%`,
+                                    backgroundColor: getComplianceColor(
+                                      patient.left_compliance || 0
+                                    ),
+                                    backgroundImage: "url('/stripes.svg')",
+                                    backgroundRepeat: "repeat",
+                                    backgroundSize: "20px 20px",
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Report & Block */}
+                        <div
+                          className={`flex flex-row gap-4 ${
+                            width < 750 ? "w-3/4 text-center" : "w-1/4"
+                          } ${
+                            !patient.activation_status
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          <div
+                            className={`${
+                              width < 750 ? "w-full text-center" : "w-full"
+                            } ${
                               patient.left_compliance === "NA"
                                 ? "opacity-50 cursor-not-allowed"
                                 : ""
                             }`}
-                        >
-                          <Image
-                            src={Notify}
-                            alt="Message"
-                            className={`w-6 h-6 mx-auto ${
-                              patient.left_compliance === "NA" || !patient.activation_status
-                                ? "opacity-50 cursor-not-allowed"
-                                : "cursor-pointer"
-                            }`}
-                            onClick={() => {
-                              if (patient.left_compliance === "NA" || !patient.activation_status) return; // 🔒 block click
-                              setisOpenreminder(true);
-                              setselectedpatuhid(patient.uhid);
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div
-                        className={`flex flex-row gap-4 items-center ${
-                          width < 750 ? "w-3/4 text-center" : "w-1/4"
-                        }`}
-                      >
-                        <div
-                          className={`${
-                            width < 750 ? "w-1/2 text-center" : "w-1/2"
-                          }
-                          ${
-                        !patient.activation_status
-                          ? "opacity-50 cursor-not-allowed"
-                          : ""
-                      }`}
-                        >
-                          <Image
-                            src={Reportimg}
-                            className={`w-8 h-8 mx-auto cursor-pointer`}
-                            alt="Report"
-                            onClick={handlenavigatereport}
-                          />
+                          >
+                            <Image
+                              src={Notify}
+                              alt="Message"
+                              className={`w-6 h-6 mx-auto ${
+                                patient.left_compliance === "NA" ||
+                                !patient.activation_status
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : "cursor-pointer"
+                              }`}
+                              onClick={() => {
+                                if (
+                                  patient.left_compliance === "NA" ||
+                                  !patient.activation_status
+                                )
+                                  return;
+                                setisOpenreminder(true);
+                                setselectedpatuhid(patient.uhid);
+                              }}
+                            />
+                          </div>
                         </div>
 
                         <div
-                          className={` h-full ${
-                            width < 750 ? "w-1/2 text-center" : "w-1/2"
+                          className={`flex flex-row gap-4 items-center ${
+                            width < 750 ? "w-3/4 text-center" : "w-1/4"
                           }`}
                         >
-                          <Image
-                            src={Block}
-                            alt="Block"
-                            className={`w-6 h-6 mx-auto cursor-pointer`}
-                            onClick={() => {
-                              setisActivationstatus(true);
-                              setselectedpatuhidactivation(patient.uhid);
-                            }}
-                          />
+                          <div
+                            className={`${
+                              width < 750 ? "w-1/2 text-center" : "w-1/2"
+                            } ${
+                              !patient.activation_status
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          >
+                            <Image
+                              src={Reportimg}
+                              className="w-8 h-8 mx-auto cursor-pointer"
+                              alt="Report"
+                              onClick={() => {
+                                handlenavigatereport();
+                                if (typeof window !== "undefined") {
+                                  sessionStorage.setItem(
+                                    "patientreportid",
+                                    patient.uhid
+                                  );
+                                }
+                              }}
+                            />
+                          </div>
+                          <div
+                            className={`${
+                              width < 750 ? "w-1/2 text-center" : "w-1/2"
+                            } ${
+                              !patient.activation_status
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          >
+                            <Image
+                              src={Block}
+                              alt="Block"
+                              className="w-6 h-6 mx-auto cursor-pointer"
+                              onClick={() => {
+                                setisActivationstatus(true);
+                                setselectedpatuhidactivation(patient.uhid);
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className={`${poppins.className} text-gray-500 font-medium text-center`}>No Patients Found Try clear All</p>
+                )}
               </div>
             </div>
           </div>

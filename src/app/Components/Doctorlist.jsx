@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 
 import axios from "axios";
@@ -107,7 +107,7 @@ const Doctorlist = ({
 
         const doctors = res.data.total_doctors || [];
         const doctorPatients = doctors.map((doc, i) => ({
-          name: doc.name,
+          name: doc.name.replace(/^Dr\.?\s*/i, ""),
           age: doc.birth_date
             ? new Date().getFullYear() - new Date(doc.birth_date).getFullYear()
             : "NA",
@@ -117,6 +117,7 @@ const Doctorlist = ({
           count: doc.total_patients,
           avatar: doc.gender === "male" ? Manavatar : Womanavatar,
         }));
+        console.log(doctorPatients);
         setPatients(doctorPatients);
       } catch (err) {
         // console.error("❌ Error fetching patients:", err);
@@ -163,12 +164,37 @@ const Doctorlist = ({
   };
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
-  const totalPages = Math.ceil(patients.length / rowsPerPage);
 
+
+  const searchedPatients = useMemo(() => {
+    if (!searchTerm) return patients; // If empty, show all
+    return patients.filter(
+      (patient) =>
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [patients, searchTerm]);
+
+  const sortedPatients = useMemo(() => {
+    return [...patients].sort((a, b) => {
+      const aComp = a.compliance === "NA" ? -1 : Number(a.compliance);
+      const bComp = b.compliance === "NA" ? -1 : Number(b.compliance);
+
+      if (sortOrder === "low_to_high") {
+        return aComp - bComp;
+      } else {
+        return bComp - aComp;
+      }
+    });
+  }, [patients, sortOrder]);
+
+  const displayedPatients = searchTerm ? searchedPatients : sortedPatients;
+
+    const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
   // Slice the data
-  const paginatedPatients = patients.slice(
+  const paginatedPatients = displayedPatients.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
@@ -205,6 +231,21 @@ const Doctorlist = ({
     const red = 255 - green;
     return `rgb(${red}, ${green}, 0)`; // 0–green, red decreases as value increases
   }
+
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <>
@@ -317,7 +358,8 @@ const Doctorlist = ({
                 }`}
               >
                 <p
-                  className={`${raleway.className} text-[#2B2B2B] font-semibold text-sm w-1/7`}
+                  className={`${raleway.className} text-[#2B2B2B] font-semibold text-sm w-1/7 cursor-pointer`}
+                  onClick={handleClearAll}
                 >
                   Clear All
                 </p>
@@ -347,7 +389,10 @@ const Doctorlist = ({
                 </div>
 
                 {/* Dropdown SVG Button */}
-                <div className={`${raleway.className} relative`}>
+                <div
+                  ref={dropdownRef}
+                  className={` ${raleway.className} relative`}
+                >
                   <div
                     className="bg-white rounded-lg p-3 cursor-pointer"
                     onClick={() => setDropdownOpen((prev) => !prev)}
@@ -529,7 +574,7 @@ const Doctorlist = ({
                         <p
                           className={`${raleway.className} text-[#475467] font-semibold text-lg`}
                         >
-                          {patient.name}
+                          Dr. {patient.name}
                         </p>
                         <p
                           className={`${poppins.className} font-normal text-sm text-[#475467]`}
@@ -587,7 +632,7 @@ const Doctorlist = ({
                         <div className="w-1/2 flex flex-col items-center relative group">
                           {/* Hover Percentage Text */}
                           <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
-                           {patient.compliance || 0}%
+                            {patient.compliance || 0}%
                           </div>
 
                           {/* Progress Bar Container */}
