@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ReactDOM from "react-dom";
 import Image from "next/image";
 
 import axios from "axios";
@@ -16,7 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { Raleway, Inter, Poppins } from "next/font/google";
+import { Raleway, Inter, Poppins, Outfit } from "next/font/google";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
 import Patdocacc from "@/app/Assets/patdocacc.png";
@@ -26,6 +27,10 @@ import Reportimg from "@/app/Assets/report.png";
 import Notify from "@/app/Assets/notify.png";
 import Block from "@/app/Assets/block.png";
 import Error from "@/app/Assets/error.png";
+import CloseIcon from "@/app/Assets/closeiconwindow.png";
+import ExpandIcon from "@/app/Assets/expand.png";
+import ShrinkIcon from "@/app/Assets/shrink.png";
+import UploadProfile from "@/app/Assets/uploadprofilepic.png";
 
 import {
   ChevronRightIcon,
@@ -65,6 +70,12 @@ const poppins = Poppins({
   variable: "--font-inter", // optional CSS variable name
 });
 
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"], // add weights as needed
+  variable: "--font-outfit", // optional CSS variable name
+});
+
 const Patientlist = ({
   isOpenaccpat,
   setIsOpenaccpat,
@@ -77,6 +88,8 @@ const Patientlist = ({
   isActivationstatus,
   setisActivationstatus,
   handlenavigatereport,
+  isOpenpatprof,
+  setisOpenpatprof,
 }) => {
   const useWindowSize = () => {
     const [size, setSize] = useState({
@@ -146,6 +159,7 @@ const Patientlist = ({
           gender:
             p.Patient?.gender?.toLowerCase() === "male" ? "Male" : "Female",
           uhid: p.uhid,
+          dob: p.Patient?.birthDate ?? "NA",
           period: p.Patient_Status_Left || "NA", // you can decide logic here
           period_right: p.Patient_Status_Right || "NA",
           status: i % 3 === 0 ? "COMPLETED" : "PENDING", // or derive from API if you want
@@ -157,6 +171,11 @@ const Patientlist = ({
           patient_initial_status: p.patient_current_status ?? "NA",
           surgery_left: p.Medical?.surgery_date_left ?? "NA",
           surgery_right: p.Medical?.surgery_date_right ?? "NA",
+          phone: p.Patient?.phone ?? "NA",
+          alterphone: p.Patient?.alterphone ?? "NA",
+          email: p.Patient?.email ?? "NA",
+          address: p.Patient?.address ?? "NA",
+          id_proofs: p.Medical?.id_proofs ?? "NA",
 
           avatar:
             p.Patient?.gender?.toLowerCase() === "male"
@@ -374,7 +393,6 @@ const Patientlist = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-
   const searchedPatients = patients.filter((patient) => {
     if (!searchTerm) return true; // no search applied
     const term = searchTerm.toLowerCase();
@@ -402,7 +420,6 @@ const Patientlist = ({
   const displayedPatients = searchTerm ? searchedPatients : sortedPatients;
 
   const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
-
 
   // Slice the data
   const paginatedPatients = displayedPatients.slice(
@@ -472,6 +489,331 @@ const Patientlist = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const [showprof, setshowprof] = useState(false);
+  const [profpat, setshowprofpat] = useState([]);
+  const [expand, setexpand] = useState(false);
+
+  // Original value
+  const [phone, setPhone] = useState(profpat?.phone);
+
+  // Editing state
+  const [isEditPhone, setIsEditPhone] = useState(false);
+
+  // Input during editing
+  const [phoneInput, setPhoneInput] = useState(phone);
+
+  // Sync input with external changes to initialPhone
+  useEffect(() => {
+    setPhone(profpat?.phone);
+    setPhoneInput(profpat?.phone);
+  }, [profpat]);
+
+  // Edit function
+  const handleEditPhone = () => {
+    setPhoneInput(phone); // initialize input with current phone
+    setIsEditPhone(true);
+  };
+
+  // Save function
+  const handleSavePhone = async () => {
+    if (!profpat?.uhid) {
+      showWarning("Patient Not found");
+      return;
+    }
+
+    if (!phoneInput) {
+      showWarning("Phone number required");
+      return;
+    }
+
+    const digitsOnly = phoneInput.replace(/\D/g, "");
+
+    if (digitsOnly.length !== 10) {
+      showWarning("Phone number must be 10 digits");
+      return;
+    }
+
+    if (/^0+$/.test(digitsOnly)) {
+      showWarning("Invalid phone number");
+      return;
+    }
+
+    setPhone(phoneInput); // save edited value
+    setIsEditPhone(false);
+
+    try {
+      // ✅ API call
+      const response = await axios.put(
+        `${API_URL}patients/update/${profpat?.uhid}`,
+        { phone: phoneInput }
+      );
+
+      // ✅ Update local state
+      setPhone(phoneInput);
+      setIsEditPhone(false);
+
+      showWarning("Phone number updated successfully");
+    } catch (error) {
+      console.error("Error updating phone:", error);
+      showWarning("Failed to update phone number");
+    }
+  };
+
+  // Cancel function
+  const handleCancelPhone = () => {
+    setPhoneInput(phone); // revert input to original
+    setIsEditPhone(false);
+  };
+
+  const [alterphone, setAlterPhone] = useState(profpat?.alterphone);
+  const [alterphoneInput, setAlterPhoneInput] = useState("");
+  const [isEditAlterPhone, setIsEditAlterPhone] = useState(false);
+
+  useEffect(() => {
+    setAlterPhone(profpat?.alterphone);
+    setAlterPhoneInput(profpat?.email);
+  }, [profpat]);
+
+  const handleEditAlterPhone = () => {
+    setAlterPhoneInput(alterphone);
+    setIsEditAlterPhone(true);
+  };
+
+  const handleCancelAlterPhone = () => {
+    setAlterPhoneInput(alterphone);
+    setIsEditAlterPhone(false);
+  };
+
+  const handleSaveAlterPhone = async () => {
+    if (!profpat?.uhid) {
+      showWarning("Patient Not found");
+      return;
+    }
+
+    if (!alterphoneInput || alterphoneInput.length !== 10) {
+      showWarning("Alternate phone number must be 10 digits");
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        `${API_URL}patients/update/${profpat?.uhid}`,
+        { home_phone: alterphoneInput }
+      );
+
+      setAlterPhone(alterphoneInput);
+      setIsEditAlterPhone(false);
+
+      showWarning("Alternate phone number updated successfully");
+    } catch (error) {
+      console.error("Error updating alternate phone:", error);
+      showWarning("Failed to update alternate phone number");
+    }
+  };
+
+  // ------------------ EMAIL STATE ------------------
+
+  // Current email
+  const [email, setEmail] = useState(profpat?.email);
+
+  // Editing state
+  const [isEditEmail, setIsEditEmail] = useState(false);
+
+  // Input during editing
+  const [emailInput, setEmailInput] = useState(email);
+
+  // Sync input when profpat changes
+  useEffect(() => {
+    setEmail(profpat?.email);
+    setEmailInput(profpat?.email);
+  }, [profpat]);
+
+  // ------------------ EMAIL FUNCTIONS ------------------
+
+  // Edit
+  const handleEditEmail = () => {
+    setEmailInput(email); // load current email
+    setIsEditEmail(true);
+  };
+
+  // Save
+  const handleSaveEmail = async () => {
+    if (!profpat?.uhid) {
+      showWarning("Patient Not found");
+      return;
+    }
+
+    if (!emailInput) {
+      showWarning("Email is required");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput)) {
+      showWarning("Please enter a valid email address.");
+      return;
+    }
+
+    setEmail(emailInput); // update locally
+    setIsEditEmail(false);
+
+    try {
+      // ✅ API call
+      const response = await axios.put(
+        `${API_URL}patients/update/${profpat?.uhid}`,
+        { email: emailInput }
+      );
+
+      // ✅ Update local state again to be safe
+      setEmail(emailInput);
+      setIsEditEmail(false);
+
+      showWarning("Email updated successfully");
+    } catch (error) {
+      console.error("Error updating email:", error);
+      showWarning("Failed to update email");
+    }
+  };
+
+  // Cancel
+  const handleCancelEmail = () => {
+    setEmailInput(email); // reset input
+    setIsEditEmail(false);
+  };
+
+  const idOptions = ["PASSPORT", "PAN", "AADHAAR", "ABHA"];
+  // State
+  const [selectedIDs, setSelectedIDs] = useState({});
+  // Which ID is currently being edited (null = none)
+  const [editingID, setEditingID] = useState(null);
+
+  // Keep inputs for each ID separately
+  const [idInputs, setIdInputs] = useState({});
+
+  // Sync with existing patient proofs
+  useEffect(() => {
+    if (profpat?.id_proofs) {
+      const existing = {};
+      const inputs = {};
+      Object.keys(profpat.id_proofs).forEach((key) => {
+        existing[key] = profpat.id_proofs[key].number;
+        inputs[key] = profpat.id_proofs[key].number;
+      });
+      setSelectedIDs(existing);
+      setIdInputs(inputs);
+    }
+  }, [profpat]);
+
+  const handleEditID = (id) => {
+    setEditingID(id); // set current editing
+    setIdInputs((prev) => ({ ...prev, [id]: selectedIDs[id] })); // preload value
+  };
+
+  const handleCancelID = (id) => {
+    setEditingID(null); // exit edit mode
+    setIdInputs((prev) => ({ ...prev, [id]: selectedIDs[id] })); // reset to original
+  };
+
+  const handleInputChange = (id, value) => {
+    setIdInputs((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSaveID = async (id) => {
+    if (!idInputs[id]) {
+      showWarning(`${id} number required`);
+      return;
+    }
+
+    const payload = {
+      [id]: idInputs[id],
+    };
+
+    console.log("ID inputs", payload);
+
+    try {
+      await axios.put(`${API_URL}patients/update/${profpat?.uhid}`, payload);
+
+      setSelectedIDs((prev) => ({ ...prev, [id]: idInputs[id] }));
+      setEditingID(null); // close edit
+      showWarning(`${id} updated successfully`);
+    } catch (error) {
+      console.error("Error updating ID proof:", error);
+      showWarning(`Failed to update ${id}`);
+    }
+  };
+
+  // State variables
+  const [address, setAddress] = useState(profpat?.address);
+  const [addressInput, setAddressInput] = useState(""); // editable input value
+  const [isEditAddress, setIsEditAddress] = useState(false);
+
+  // Functions
+  const handleEditAddress = () => {
+    setIsEditAddress(true);
+    setAddressInput(address);
+  };
+
+    // Sync with existing patient proofs
+  useEffect(() => {
+    if (profpat?.address) {
+      setAddress(profpat?.address);
+      setAddressInput(profpat?.address);
+    }
+  }, [profpat]);
+
+  const handleSaveAddress =async () => {
+    setAddress(addressInput);
+    setIsEditAddress(false);
+
+    // 🔥 API call or PUT only { "address": addressInput }
+    console.log({ address: addressInput });
+
+    try {
+      await axios.put(`${API_URL}patients/update/${profpat?.uhid}`, { address: addressInput });
+
+      setAddress(addressInput);
+      setIsEditAddress(null); // close edit
+      showWarning(`Address updated successfully`);
+    } catch (error) {
+      console.error("Error updating ID proof:", error);
+      showWarning(`Failed to update ${id}`);
+    }
+  };
+
+  const handleCancelAddress = () => {
+    setIsEditAddress(false);
+    setAddressInput(address);
+  };
+
+  const [profileImage, setProfileImage] = useState(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file && e.target.files) {
+      setProfileImage(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setSuccess("");
+      setError("");
+    }
+  };
+
+  const isBlobUrl = previewUrl && previewUrl.startsWith("blob:");
+
+  const fileInputRef = useRef(null); // To programmatically trigger the file input
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const showWarning = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 4000);
+  };
 
   return (
     <>
@@ -1090,6 +1432,10 @@ const Patientlist = ({
                             className={`rounded-full cursor-pointer ${
                               width < 530 ? "w-11 h-11" : "w-10 h-10"
                             }`}
+                            onClick={() => {
+                              setshowprof(true);
+                              setshowprofpat(patient);
+                            }}
                           />
                           <div
                             className={`w-full flex items-center ${
@@ -1331,7 +1677,11 @@ const Patientlist = ({
                     </div>
                   ))
                 ) : (
-                  <p className={`${poppins.className} text-gray-500 font-medium text-center`}>No Patients Found Try clear All</p>
+                  <p
+                    className={`${poppins.className} text-gray-500 font-medium text-center`}
+                  >
+                    No Patients Found Try clear All
+                  </p>
                 )}
               </div>
             </div>
@@ -1340,6 +1690,470 @@ const Patientlist = ({
 
         {width >= 1000 && <div className="w-[2%]"></div>}
       </div>
+
+      {showprof &&
+        ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 z-40 "
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+            }}
+          >
+            <div
+              className={`
+            min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
+            ${width < 950 ? "gap-4 w-full" : "w-5/6"}
+            ${expand ? "w-full" : "p-4"}
+          `}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                  width < 1095 ? "flex flex-col gap-4" : ""
+                } ${expand ? "max-h-[100vh]" : "max-h-[92vh] rounded-2xl"}`}
+              >
+                <div
+                  className={`w-full bg-[#FCFCFC]  ${
+                    width < 760 ? "h-fit" : "h-[80%]"
+                  } `}
+                >
+                  <div
+                    className={`w-full h-full rounded-lg flex flex-col gap-12 ${
+                      width < 760 ? "py-0" : "py-4 px-8"
+                    }`}
+                  >
+                    <div className="flex flex-row justify-between items-center w-full">
+                      <p
+                        className={`${inter.className} text-2xl font-semibold text-black`}
+                      >
+                        Patient Profile
+                      </p>
+                      <div
+                        className={`flex flex-row gap-4 items-center justify-center`}
+                      >
+                        {expand ? (
+                          <Image
+                            src={ShrinkIcon}
+                            onClick={() => {
+                              setexpand(false);
+                            }}
+                            alt="Expand"
+                            className={`w-6 h-6 cursor-pointer`}
+                          />
+                        ) : (
+                          <Image
+                            src={ExpandIcon}
+                            onClick={() => {
+                              setexpand(true);
+                            }}
+                            alt="Expand"
+                            className={`w-12 h-6 cursor-pointer`}
+                          />
+                        )}
+                        <Image
+                          src={CloseIcon}
+                          alt="Close"
+                          className={`w-fit h-6 cursor-pointer`}
+                          onClick={() => {
+                            setshowprof(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-full flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div
+                        className={`flex gap-4 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        } ${width < 700 ? "flex-col" : "flex-row"}`}
+                      >
+                        <div
+                          className={`flex flex-col gap-2 ${
+                            width < 700 ? "w-full" : "w-1/2"
+                          }`}
+                        >
+                          <p
+                            className={` ${outfit.className} font-normal text-base text-black/80`}
+                          >
+                            Name
+                          </p>
+                          <p
+                            className={`w-full text-black
+                          font-medium
+                          text-lg
+                          ${inter.className}`}
+                          >
+                            {profpat?.name}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <p
+                          className={` ${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          UHID
+                        </p>
+                        <p
+                          className={`w-full text-black
+                          font-medium
+                          text-lg
+                          ${inter.className}`}
+                        >
+                          {profpat?.uhid}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div
+                        className={`flex flex-col gap-8 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <div
+                          className={`w-full flex  gap-8 ${
+                            width < 700 ? "flex-col" : "flex-row"
+                          }`}
+                        >
+                          {/* Gender Dropdown */}
+                          <div
+                            className={`flex flex-col gap-2 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              Gender
+                            </p>
+                            <p
+                              className={`w-full text-black
+                          font-medium
+                          text-lg
+                          ${inter.className}`}
+                            >
+                              {profpat?.gender}
+                            </p>
+                          </div>
+
+                          {/* Date of Birth Input */}
+                          <div
+                            className={`flex flex-col gap-2.5 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              Date of Birth
+                            </p>
+                            <p
+                              className={`w-full text-black
+                          font-medium
+                          text-lg
+                          ${inter.className}`}
+                            >
+                              {profpat?.dob}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className={`w-full flex flex-col gap-2`}>
+                          <p
+                            className={`${outfit.className} font-normal text-base text-black/80`}
+                          >
+                            Phone Number *
+                          </p>
+
+                          {!isEditPhone ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-black/90">
+                                {phone || "NA"}
+                              </span>
+                              <PencilSquareIcon
+                                className="w-5 h-5 cursor-pointer text-gray-500"
+                                onClick={handleEditPhone}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="tel"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={10}
+                                className={`border-b-2 border-black outline-none text-black px-1 w-full ${inter.className}`}
+                                value={phoneInput}
+                                onChange={(e) => {
+                                  const value = e.target.value.replace(
+                                    /\D/g,
+                                    ""
+                                  );
+                                  setPhoneInput(value);
+                                }}
+                              />
+                              <ClipboardDocumentCheckIcon
+                                className="w-5 h-5 cursor-pointer text-green-500"
+                                onClick={handleSavePhone}
+                              />
+                              <XMarkIcon
+                                className="w-5 h-5 cursor-pointer text-red-500"
+                                onClick={handleCancelPhone}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 justify-between ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <div
+                          className={`w-full flex  gap-2 ${
+                            width < 700 ? "flex-col" : "flex-row"
+                          }`}
+                        >
+                          <div
+                            className={`flex flex-col gap-2 ${
+                              width < 700 ? "w-full" : "w-4/7"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              Address *
+                            </p>
+
+                            {!isEditAddress ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-black/90">
+                                  {address || "Not provided"}
+                                </span>
+                                <PencilSquareIcon
+                                  className="w-5 h-5 cursor-pointer text-gray-500"
+                                  onClick={handleEditAddress}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                <textarea
+                                  className={`w-full bg-[#D9D9D9]/20 outline-none text-black py-2 px-2 
+                    font-medium text-base resize-none ${inter.className}`}
+                                  rows={5}
+                                  value={addressInput}
+                                  onChange={(e) =>
+                                    setAddressInput(e.target.value)
+                                  }
+                                />
+                                <div className="flex gap-2">
+                                  <ClipboardDocumentCheckIcon
+                                    className="w-5 h-5 cursor-pointer text-green-500"
+                                    onClick={handleSaveAddress}
+                                  />
+                                  <XMarkIcon
+                                    className="w-5 h-5 cursor-pointer text-red-500"
+                                    onClick={handleCancelAddress}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div
+                            className={`flex items-center justify-center ${
+                              width < 700 ? "w-full" : "w-3/7"
+                            }`}
+                          >
+                            <Image
+                              src={UploadProfile}
+                              alt="Upload Profile"
+                              className={`w-full h-full`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div className={`w-full flex flex-col gap-2`}>
+                        <p
+                          className={`${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          Email
+                        </p>
+
+                        {!isEditEmail ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-black/90">
+                              {email || "NA"}
+                            </span>
+                            <PencilSquareIcon
+                              className="w-5 h-5 cursor-pointer text-gray-500"
+                              onClick={handleEditEmail}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 w-full">
+                            <input
+                              type="email"
+                              className={`border-b-2 border-black outline-none text-black px-1 w-full ${inter.className}`}
+                              value={emailInput}
+                              onChange={(e) => setEmailInput(e.target.value)}
+                            />
+                            <ClipboardDocumentCheckIcon
+                              className="w-5 h-5 cursor-pointer text-green-500"
+                              onClick={handleSaveEmail}
+                            />
+                            <XMarkIcon
+                              className="w-5 h-5 cursor-pointer text-red-500"
+                              onClick={handleCancelEmail}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={`w-full flex flex-col gap-2`}>
+                        <p
+                          className={`${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          Alternate Phone Number
+                        </p>
+
+                        {!isEditAlterPhone ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-black/90">
+                              {alterphone || "NA"}
+                            </span>
+                            <PencilSquareIcon
+                              className="w-5 h-5 cursor-pointer text-gray-500"
+                              onClick={handleEditAlterPhone}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={10}
+                              className={`border-b-2 border-black outline-none text-black px-1 w-full ${inter.className}`}
+                              value={alterphoneInput}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, "");
+                                setAlterPhoneInput(value);
+                              }}
+                            />
+                            <ClipboardDocumentCheckIcon
+                              className="w-5 h-5 cursor-pointer text-green-500"
+                              onClick={handleSaveAlterPhone}
+                            />
+                            <XMarkIcon
+                              className="w-5 h-5 cursor-pointer text-red-500"
+                              onClick={handleCancelAlterPhone}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="w-5/7 flex flex-col gap-6">
+                      <p
+                        className={`${outfit.className} font-normal text-base text-black/80`}
+                      >
+                        ID PROOF *
+                      </p>
+
+                      {Object.keys(selectedIDs).map((id) => (
+                        <div key={id} className="flex flex-col gap-2 mt-2">
+                          <label
+                            className={`${outfit.className} text-base uppercase text-black/80`}
+                          >
+                            {id} Number
+                          </label>
+
+                          {editingID !== id ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-black/90">
+                                {selectedIDs[id]}
+                              </span>
+                              <PencilSquareIcon
+                                className="w-5 h-5 cursor-pointer text-gray-500"
+                                onClick={() => handleEditID(id)}
+                              />
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                className={`w-full border-b-2 border-black outline-none text-black font-medium text-lg px-1 bg-transparent ${inter.className}`}
+                                value={idInputs[id] || ""}
+                                onChange={(e) =>
+                                  handleInputChange(id, e.target.value)
+                                }
+                              />
+                              <ClipboardDocumentCheckIcon
+                                className="w-5 h-5 cursor-pointer text-green-500"
+                                onClick={() => handleSaveID(id)}
+                              />
+                              <XMarkIcon
+                                className="w-5 h-5 cursor-pointer text-red-500"
+                                onClick={() => handleCancelID(id)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {showAlert && (
+                    <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+                      <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">
+                        {alertMessage}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <style>
+              {`
+        .inline-scroll::-webkit-scrollbar {
+          width: 12px;
+        }
+        .inline-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .inline-scroll::-webkit-scrollbar-thumb {
+          background-color: #076C40;
+          border-radius: 8px;
+        }
+  
+        .inline-scroll {
+          scrollbar-color: #076C40 transparent;
+        }
+      `}
+            </style>
+          </div>,
+          document.body // portal target
+        )}
 
       <Patientregistration
         isOpenacc={isOpenaccpat}

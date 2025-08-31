@@ -424,10 +424,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
 
   const [mounted, setMounted] = useState(false);
 
-  
-
-  
-  
 
   const handleCreatePatient = async () => {
     let adminUhid = "";

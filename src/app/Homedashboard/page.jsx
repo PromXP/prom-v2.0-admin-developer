@@ -121,6 +121,7 @@ const page = () => {
   const [isOpenreminder, setisOpenreminder] = useState(false);
   const [isOpencompliance, setisOpencompliance] = useState(false);
   const [isActivationstatus, setisActivationstatus] = useState(false);
+  const [isOpenpatprof, setisOpenpatprof] = useState(false);
 
   const handlenavigatereport = () => {
     setActiveTab("Report");
@@ -142,6 +143,8 @@ const page = () => {
             isActivationstatus={isActivationstatus}
             setisActivationstatus={setisActivationstatus}
             handlenavigatereport={handlenavigatereport}
+            isOpenpatprof={isOpenpatprof}
+            setisOpenpatprof={setisOpenpatprof}
           />
         );
 
@@ -182,8 +185,6 @@ const page = () => {
       }
     }
   }, []);
-
-
 
   return (
     <div
