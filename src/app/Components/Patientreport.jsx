@@ -400,73 +400,78 @@ const Patientreport = () => {
     "Knee Society Score": "KSS",
     "Forgotten Joint Score": "FJS",
   };
-  
-const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
-  if (!apiData) return { periods: [], questionnaires: [] };
 
-  const periodOffsets = [
-    { key: "pre_op", label: "Pre Op", offset: -1 },
-    { key: "6w", label: "6W", offset: 42 },
-    { key: "3m", label: "3M", offset: 90 },
-    { key: "6m", label: "6M", offset: 180 },
-    { key: "1y", label: "1Y", offset: 365 },
-    { key: "2y", label: "2Y", offset: 730 },
-  ];
+  const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
+    if (!apiData) return { periods: [], questionnaires: [] };
 
-  const periods = periodOffsets.map((p) => ({
-    key: p.key,
-    label: p.label,
-    date: addDays(surgeryDateLeft, p.offset),
-  }));
+    const periodOffsets = [
+      { key: "pre_op", label: "Pre Op", offset: -1 },
+      { key: "6w", label: "6W", offset: 42 },
+      { key: "3m", label: "3M", offset: 90 },
+      { key: "6m", label: "6M", offset: 180 },
+      { key: "1y", label: "1Y", offset: 365 },
+      { key: "2y", label: "2Y", offset: 730 },
+    ];
 
-  const questionnaires = Object.entries(apiData).map(([qKey, qPeriods]) => {
-    const scores = {};
-    const notesMap = {};
+    const periods = periodOffsets.map((p) => ({
+      key: p.key,
+      label: p.label,
+      date: addDays(surgeryDateLeft, p.offset),
+    }));
 
-    periodOffsets.forEach((p) => {
-      const periodData = qPeriods?.[p.label];
+    const questionnaires = Object.entries(apiData).map(([qKey, qPeriods]) => {
+      const scores = {};
+      const notesMap = {};
 
-      if (!qPeriods?.[p.label]) {
-        // Period itself not present
-        scores[p.key] = "-";
-        notesMap[p.key] = "-";
-      } else if (periodData && !periodData.score) {
-        // Period exists but score missing
-        scores[p.key] = "NA";
+      periodOffsets.forEach((p) => {
+        const periodData = qPeriods?.[p.label];
 
-        // Notes
-        const [first, second, third, fourth] = periodData.other_notes || [];
-        const filtered = [];
-        if (first === "No") filtered.push(first);
-        if (third === "No") filtered.push(third);
-        notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
-      } else {
-        // Period exists and score exists
-        const match = periodData.score.match(/:\s*(\d+)/);
-        scores[p.key] = match ? match[1] : "NA";
+        if (!qPeriods?.[p.label]) {
+          // Period itself not present
+          scores[p.key] = "-";
+          notesMap[p.key] = "-";
+        } else if (periodData && !periodData.score) {
+          // Period exists but score missing
+          scores[p.key] = "NA";
 
-        const [first, second, third, fourth] = periodData.other_notes || [];
-        const filtered = [];
-        if (first === "No") filtered.push(first);
-        if (third === "No") filtered.push(third);
-        notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
-      }
+          // Notes
+          const [first, second, third, fourth] = periodData.other_notes || [];
+          const filtered = [];
+          if (first === "No") filtered.push(first);
+          if (third === "No") filtered.push(third);
+          notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
+        } else {
+          // Period exists and score exists
+          const match = periodData.score.match(/:\s*(\d+)/);
+          scores[p.key] = match ? match[1] : "NA";
+
+          const [first, second, third, fourth] = periodData.other_notes || [];
+          const filtered = [];
+          if (first === "No") filtered.push(first);
+          if (third === "No") filtered.push(third);
+          notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
+        }
+      });
+
+      const fullName = QUESTIONNAIRE_NAMES[qKey] || qKey;
+
+      return { name: fullName, scores, notesMap };
     });
 
-    const fullName = QUESTIONNAIRE_NAMES[qKey] || qKey;
-
-    return { name: fullName, scores, notesMap };
-  });
-
-  return { periods, questionnaires };
-};
-
+    return { periods, questionnaires };
+  };
 
   // Usage
   const staticLeft = surgerydatleft
     ? transformApiDataToStaticWithDates(
         patientbasic?.questionnaire_left,
         surgerydatleft
+      )
+    : { periods: [], questionnaires: [] };
+  const staticRight = surgerydatright
+    ? transformApiDataToStaticWithDates(
+        patientbasic?.questionnaire_right,
+        surgerydatright
       )
     : { periods: [], questionnaires: [] };
   console.log(staticLeft);
@@ -882,7 +887,7 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
 
   const [resetperiod, setrestperiod] = useState("");
 
-  const handleMinusClick = ({period}) =>{
+  const handleMinusClick = ({ period }) => {
     if (!patientbasic?.uhid) {
       showWarning("Patient ID not found");
       return;
@@ -899,7 +904,7 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
     }
     setrestperiod(period);
     setresetconfirm(true);
-  }
+  };
 
   const handleresetquestionnaire = async () => {
     if (!patientbasic?.uhid) {
@@ -938,7 +943,7 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
     }
   };
 
-  const handleBinClick = ({period}) =>{
+  const handleBinClick = ({ period }) => {
     if (!patientbasic?.uhid) {
       showWarning("Patient ID not found");
       return;
@@ -955,7 +960,7 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
     }
     setrestperiod(period);
     setdeleteconfirm(true);
-  }
+  };
 
   const handledeletequestionnaire = async () => {
     if (!patientbasic?.uhid) {
@@ -982,7 +987,10 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
     console.log("Payload for reset questionnaire:", payload);
 
     try {
-      const res = await axios.delete(`${API_URL}delete-questionnaires`, payload);
+      const res = await axios.delete(
+        `${API_URL}delete-questionnaires`,
+        payload
+      );
       showWarning("Questionnaire Reset Successful");
       window.location.reload();
     } catch (err) {
@@ -1148,11 +1156,13 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                 <button
                   className={`${
                     raleway.className
-                  } text-sm px-4 py-[0.5px] w-1/2 rounded-lg font-semibold bg-[#2B333E] text-white ${
+                  } text-sm px-4 py-[0.5px] w-1/2 rounded-lg font-semibold   ${
                     !surgerydatleft || surgerydatleft === "NA"
                       ? "cursor-not-allowed opacity-50"
                       : "cursor-pointer"
-                  }`}
+                  }
+                  ${handlequestableswitch === "left"?"bg-[#2B333E] text-white":"bg-[#CAD9D6] text-black"}
+                  `}
                   onClick={
                     !surgerydatleft || surgerydatleft === "NA"
                       ? undefined
@@ -1166,11 +1176,12 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                 <button
                   className={`${
                     raleway.className
-                  } text-sm px-4 py-[0.5px] w-1/2 rounded-lg font-semibold bg-[#CAD9D6] text-black ${
+                  } text-sm px-4 py-[0.5px] w-1/2 rounded-lg font-semibold   ${
                     !surgerydatright || surgerydatright === "NA"
                       ? "cursor-not-allowed opacity-50"
                       : "cursor-pointer"
-                  }`}
+                  }
+                  ${handlequestableswitch === "right"?"bg-[#2B333E] text-white":"bg-[#CAD9D6] text-black"}`}
                   onClick={
                     !surgerydatright || surgerydatright === "NA"
                       ? undefined
@@ -1214,7 +1225,9 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                                   src={Delete}
                                   alt="reset"
                                   className="w-8 h-5 max-w-[22px] min-h-[20px] font-bold cursor-pointer"
-                                   onClick={() => handleBinClick({ period: period.label })}
+                                  onClick={() =>
+                                    handleBinClick({ period: period.label })
+                                  }
                                 />
                               </span>
                             </div>
@@ -1236,8 +1249,9 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                                   src={Reset}
                                   alt="reset"
                                   className="w-8 h-5 max-w-[22px] min-h-[20px] font-bold cursor-pointer"
-                                  onClick={() => handleMinusClick({ period: period.label })}
-
+                                  onClick={() =>
+                                    handleMinusClick({ period: period.label })
+                                  }
                                 />
                               </span>
                             </div>
@@ -1824,7 +1838,9 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
           }}
         >
           <div
-            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${width < 950 ? "gap-4 w-full" : "w-1/2"}`}
+            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${
+              width < 950 ? "gap-4 w-full" : "w-1/2"
+            }`}
           >
             <div
               className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
@@ -1871,9 +1887,12 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                     <p
                       className={`${outfit.className} text-lg font-normal text-black`}
                     >
-                      Kindly confirm the reset of all the questionnaire in the period: <span className={`font-bold uppercase`}>{resetperiod}</span>
+                      Kindly confirm the reset of all the questionnaire in the
+                      period:{" "}
+                      <span className={`font-bold uppercase`}>
+                        {resetperiod}
+                      </span>
                     </p>
-
                   </div>
 
                   <div className={`w-full flex flex-row`}>
@@ -1904,7 +1923,6 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                       </button>
                     </div>
                   </div>
-
                 </div>
                 {showAlert && (
                   <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
@@ -1956,7 +1974,9 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
           }}
         >
           <div
-            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${width < 950 ? "gap-4 w-full" : "w-1/2"}`}
+            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${
+              width < 950 ? "gap-4 w-full" : "w-1/2"
+            }`}
           >
             <div
               className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
@@ -2003,9 +2023,12 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                     <p
                       className={`${outfit.className} text-lg font-normal text-black`}
                     >
-                      Kindly confirm to delete all the questionnaire in the period: <span className={`font-bold uppercase`}>{resetperiod}</span>
+                      Kindly confirm to delete all the questionnaire in the
+                      period:{" "}
+                      <span className={`font-bold uppercase`}>
+                        {resetperiod}
+                      </span>
                     </p>
-
                   </div>
 
                   <div className={`w-full flex flex-row`}>
@@ -2036,7 +2059,6 @@ const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
                       </button>
                     </div>
                   </div>
-
                 </div>
                 {showAlert && (
                   <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
