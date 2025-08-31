@@ -131,7 +131,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
         processSide(patientData.Medical_Left, "Left");
         processSide(patientData.Medical_Right, "Right");
 
-        console.log("📝 Incomplete Questionnaires:", transformedQues);
+        console.log("📝 Incomplete Questionnaires:", patientData.Medical_Left);
         setQues(transformedQues); // replace your static ques
       } catch (err) {
         console.error("Error fetching patient reminder:", err);
@@ -187,6 +187,97 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
       }
       console.error("Follow-up error:", err);
     }
+  };
+
+const handleSendremainder = async () => {
+    if (remindermessage.trim() === "") {
+      setShowAlert(true);
+      setTimeout(() => setShowAlert(false), 2500);
+      return;
+    }
+
+    console.log(
+      "Reminder data",
+      JSON.stringify({
+        // message:
+        //   "Hey User\nHope Your doing well !\n" +
+        //   message +
+        //   "\nThank you with love,\nXolabsHealth ",
+        user_name: patient?.Patient?.name,
+        message: remindermessage,
+        phone_number: "+91" + phone,
+      })
+    );
+    // return;
+
+    // sendRealTimeMessage();
+    try {
+      const res = await fetch(API_URL + "send/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: patient?.Patient?.name,
+          email: email,
+          subject: "Questionnaire Pending Reminder",
+          message: remindermessage + "<br>Thank you with love,<br>XolabsHealth",
+        }),
+      });
+
+      let data;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: "Invalid JSON response", raw: text };
+      }
+
+      console.log("Email API response:", data);
+
+      if (res.ok) {
+        // alert("Email sent (check console for details)");
+        // showWarning("Email sent Successfully");
+        // sendRealTimeMessage();
+      } else {
+        showWarning("Failed to send email. Check logs.");
+      }
+      sendwhatsapp();
+    } catch (error) {
+      console.error("Error sending email:", error);
+      showWarning("Failed to send email.");
+    }
+  };
+
+
+const sendwhatsapp = async () => {
+    const res = await fetch(API_URL + "send-whatsapp/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        // message:
+        //   "Hey User\nHope Your doing well !\n" +
+        //   message +
+        //   "\nThank you with love,\nXolabsHealth ",
+        user_name: patient?.Patient?.name,
+        message: remindermessage,
+        phone_number: "+91" + phone,
+        flag: 0,
+      }),
+    });
+
+    let data;
+    const text = await res.text();
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: "Invalid JSON response", raw: text };
+    }
+
+    showWarning("Reminder Sent Successfully");
+    window.location.reload();
   };
 
   const showWarning = (message) => {
@@ -328,6 +419,58 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                 </div>
               </div>
 
+              <div className={`w-full flex flex-row`}>
+                <div
+                  className={`w-1/2 flex flex-row gap-6 items-center ${
+                    width < 700 ? "justify-between" : "justify-start"
+                  }`}
+                >
+                  <a
+                    href={`tel:${phone}`}
+                    className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer flex justify-center items-center ${
+                      outfit.className
+                    } ${width < 700 ? "w-1/2" : "w-1/3"}`}
+                  >
+                    CALL
+                  </a>
+                </div>
+
+                <div
+                  className={`w-1/2 flex flex-row gap-6 items-center ${
+                    width < 700 ? "justify-between" : "justify-end"
+                  }`}
+                >
+                  <button
+                    className={`text-black/80 font-normal ${
+                      outfit.className
+                    } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/3"}`}
+                    onClick={() => {
+                      if (!switchcont) {
+                        setremindermessage("");
+                      } else {
+                        setfollowupmessage("");
+                      }
+                    }}
+                  >
+                    Clear All
+                  </button>
+                  <button
+                    className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
+                      outfit.className
+                    } ${width < 700 ? "w-1/2" : "w-1/3"}`}
+                    onClick={() => {
+                      if (!switchcont) {
+                        handleSendremainder();
+                      } else {
+                        handleSubmit();
+                      }
+                    }}
+                  >
+                    SEND
+                  </button>
+                </div>
+              </div>
+
               <div
                 className={`w-full flex gap-2 ${
                   width >= 1200 ? "flex-col" : "flex-col"
@@ -440,56 +583,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                 </div>
               </div>
 
-              <div className={`w-full flex flex-row`}>
-                <div
-                  className={`w-1/2 flex flex-row gap-6 items-center ${
-                    width < 700 ? "justify-between" : "justify-start"
-                  }`}
-                >
-                  <a
-                    href={`tel:${phone}`}
-                    className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer flex justify-center items-center ${
-                      outfit.className
-                    } ${width < 700 ? "w-1/2" : "w-1/3"}`}
-                  >
-                    CALL
-                  </a>
-                </div>
-
-                <div
-                  className={`w-1/2 flex flex-row gap-6 items-center ${
-                    width < 700 ? "justify-between" : "justify-end"
-                  }`}
-                >
-                  <button
-                    className={`text-black/80 font-normal ${
-                      outfit.className
-                    } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/3"}`}
-                    onClick={() => {
-                      if (!switchcont) {
-                        setremindermessage("");
-                      } else {
-                        setfollowupmessage("");
-                      }
-                    }}
-                  >
-                    Clear All
-                  </button>
-                  <button
-                    className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
-                      outfit.className
-                    } ${width < 700 ? "w-1/2" : "w-1/3"}`}
-                    onClick={() => {
-                      if (!switchcont) {
-                      } else {
-                        handleSubmit();
-                      }
-                    }}
-                  >
-                    SEND
-                  </button>
-                </div>
-              </div>
+              
             </div>
             {showAlert && (
               <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">

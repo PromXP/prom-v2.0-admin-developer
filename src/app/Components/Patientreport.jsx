@@ -186,6 +186,8 @@ const Patientreport = () => {
           name: patient.Patient?.name ?? "NA",
           age: calculateAge(patient.Patient?.birthDate),
           gender: patient.Patient?.gender ?? "NA",
+          phone: patient.Patient?.phone ?? "NA",
+          email: patient.Patient?.email ?? "NA",
           uhid: patient.uhid ?? "NA",
           statusLeft: patient.Patient_Status_Left ?? "NA",
           statusRight: patient.Patient_Status_Right ?? "NA",
@@ -216,7 +218,7 @@ const Patientreport = () => {
 
         console.log(
           "Fetched patient reminder data:",
-          pickedData.questionnaire_left
+          patient
         );
       } catch (err) {
         console.error("Error fetching patient reminder:", err);
@@ -876,6 +878,7 @@ const Patientreport = () => {
         payload
       );
       showWarning("Questionnaire Assigned Successfully");
+      handleSendremainder();
     } catch (error) {
       if (axios.isAxiosError(error)) {
         showWarning(error.response?.data || error.message);
@@ -936,7 +939,7 @@ const Patientreport = () => {
       window.location.reload();
     } catch (err) {
       if (err.response) {
-        showWarning(err.response.data.detail || "Failed to schedule surgery");
+        showWarning(err.response.data.detail || "Failed to reset questionnaires");
       } else {
         showWarning("Network error");
       }
@@ -989,16 +992,98 @@ const Patientreport = () => {
     try {
       const res = await axios.delete(
         `${API_URL}delete-questionnaires`,
-        payload
+        {data: payload}
       );
-      showWarning("Questionnaire Reset Successful");
+      showWarning("Questionnaire Delete Successful");
       window.location.reload();
     } catch (err) {
       if (err.response) {
-        showWarning(err.response.data.message || "Failed to schedule surgery");
+        showWarning(err.response.data.message || "Failed to delete questionnaire");
       } else {
         showWarning("Network error");
       }
+    }
+  };
+
+  const handleSendremainder = async () => {
+    if (!patientbasic?.email) {
+      showWarning("Patient email is missing.");
+      return;
+    }
+
+    try {
+      const res = await fetch(API_URL + "send/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: patientbasic?.name,
+          email: patientbasic?.email,
+          subject: "New Questionnaire Assigned",
+          message:
+            "This is a kind reminder regarding your pending health questionnaire(s). Completing these forms helps us track your recovery and provide better care.",
+        }),
+      });
+
+      let data;
+      const text = await res.text();
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: "Invalid JSON response", raw: text };
+      }
+
+      // console.log("Email send response:", data);
+      sendwhatsapp();
+
+      if (!res.ok) {
+        showWarning("Failed to send email.");
+
+        return;
+      }
+
+      // alert("✅ Email sent (check console for details)");
+      showWarning("✅ Email sent Successfull");
+      // sendRealTimeMessage();
+    } catch (error) {
+      showWarning("Failed to send email.");
+    }
+  };
+
+  const sendwhatsapp = async () => {
+    console.log(
+      "Whatsapp contact",
+      JSON.stringify({
+        user_name: patientbasic?.name,
+        phone_number: "+91" + patientbasic?.phone,
+        message: "",
+        flag: 1,
+      })
+    );
+
+    // return;
+
+    const res = await fetch(API_URL + "send-whatsapp/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_name: patientbasic?.name,
+        phone_number: "+91" + patientbasic?.phone,
+        message: "",
+        flag: 1,
+      }),
+    });
+
+    let data;
+    const text = await res.text();
+    try {
+      data = JSON.parse(text);
+      window.location.reload();
+    } catch {
+      data = { error: "Invalid JSON response", raw: text };
     }
   };
 
@@ -1161,7 +1246,11 @@ const Patientreport = () => {
                       ? "cursor-not-allowed opacity-50"
                       : "cursor-pointer"
                   }
-                  ${handlequestableswitch === "left"?"bg-[#2B333E] text-white":"bg-[#CAD9D6] text-black"}
+                  ${
+                    handlequestableswitch === "left"
+                      ? "bg-[#2B333E] text-white"
+                      : "bg-[#CAD9D6] text-black"
+                  }
                   `}
                   onClick={
                     !surgerydatleft || surgerydatleft === "NA"
@@ -1181,7 +1270,11 @@ const Patientreport = () => {
                       ? "cursor-not-allowed opacity-50"
                       : "cursor-pointer"
                   }
-                  ${handlequestableswitch === "right"?"bg-[#2B333E] text-white":"bg-[#CAD9D6] text-black"}`}
+                  ${
+                    handlequestableswitch === "right"
+                      ? "bg-[#2B333E] text-white"
+                      : "bg-[#CAD9D6] text-black"
+                  }`}
                   onClick={
                     !surgerydatright || surgerydatright === "NA"
                       ? undefined
