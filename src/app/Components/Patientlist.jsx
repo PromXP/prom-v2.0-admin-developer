@@ -178,7 +178,9 @@ const Patientlist = ({
           id_proofs: p.Medical?.id_proofs ?? "NA",
 
           avatar:
-            p.Patient?.gender?.toLowerCase() === "male"
+            p.Patient?.photo && p.Patient?.photo !== "NA"
+              ? p.Patient.photo
+              : p.Patient?.gender?.toLowerCase() === "male"
               ? Manavatar
               : Womanavatar,
         }));
@@ -755,7 +757,7 @@ const Patientlist = ({
     setAddressInput(address);
   };
 
-    // Sync with existing patient proofs
+  // Sync with existing patient proofs
   useEffect(() => {
     if (profpat?.address) {
       setAddress(profpat?.address);
@@ -763,7 +765,7 @@ const Patientlist = ({
     }
   }, [profpat]);
 
-  const handleSaveAddress =async () => {
+  const handleSaveAddress = async () => {
     setAddress(addressInput);
     setIsEditAddress(false);
 
@@ -771,7 +773,9 @@ const Patientlist = ({
     console.log({ address: addressInput });
 
     try {
-      await axios.put(`${API_URL}patients/update/${profpat?.uhid}`, { address: addressInput });
+      await axios.put(`${API_URL}patients/update/${profpat?.uhid}`, {
+        address: addressInput,
+      });
 
       setAddress(addressInput);
       setIsEditAddress(null); // close edit
@@ -792,16 +796,58 @@ const Patientlist = ({
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [showimgupload, setimgupload] = useState(false);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file && e.target.files) {
       setProfileImage(file);
       setPreviewUrl(URL.createObjectURL(file));
-      setSuccess("");
-      setError("");
+      
+      setimgupload(true);
     }
   };
+
+    const resetImage = () => {
+    setProfileImage(null);
+    setPreviewUrl(null);
+  
+
+    // Optionally clear the file input value
+    if (fileInputRef.current) {
+      fileInputRef.current.value = null;
+    }
+    setimgupload(false);
+  };
+
+    const handleUpload = async ({ uhid1, type1 }) => {
+    if (!profileImage) {
+      setError("Please select or capture an image.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("uhid", uhid1);
+    formData.append("usertype", type1); // <-- Make sure userType is defined
+    formData.append("profile_image", profileImage);
+
+    try {
+      const res = await axios.post(
+        `${API_URL}upload-profile-photo`,
+        formData
+      );
+
+      console.log("Profile upload success:", res.data);
+      showWarning("Image Upload Successfull");
+      setimgupload(false);
+    } catch (err) {
+      console.error("Profile upload failed:", err);
+      showWarning("Image Upload failed");
+      setimgupload(true);
+    }
+  };
+
+
 
   const isBlobUrl = previewUrl && previewUrl.startsWith("blob:");
 
@@ -836,80 +882,6 @@ const Patientlist = ({
                 : "flex-col justify-center"
             }`}
           >
-            {/* <div
-              className={`w-full flex flex-col items-center justify-between gap-2 ${
-                width >= 1000
-                  ? "h-3/5 py-12"
-                  : width >= 400 && width < 1000
-                  ? "h-full py-2"
-                  : "h-1/2 py-4"
-              }`}
-            >
-
-              <p
-                className={`${poppins.className} font-semibold text-2xl text-[#29272A]`}
-              >
-                Stats
-              </p>
-              <ResponsiveContainer
-                width="90%"
-                height="100%"
-                className={`${poppins.className} bg-[#319B8F] rounded-3xl p-2`}
-                style={{
-                  boxShadow: "0 20px 60px rgba(49, 155, 143, 0.4)", // soft teal glow
-                }}
-              >
-                <BarChart
-                  data={data}
-                  barCategoryGap={40}
-                  margin={{ top: 20, right: 0, left: -15, bottom: 0 }}
-                >
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fill: "#fff", fontWeight: 400, fontSize: 12 }}
-                    interval={0}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tick={{ fill: "#fff", fontWeight: 400, fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "rgba(255, 255, 255, 0.1)" }}
-                    contentStyle={{
-                      backgroundColor: "#ffffff",
-                      borderRadius: "12px",
-                      border: "1px solid #e5e7eb", // subtle gray border
-                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)", // soft shadow
-                      padding: "8px 12px",
-                      fontSize: "14px",
-                      color: "#333",
-                    }}
-                    itemStyle={{
-                      color: "#333",
-                      fontWeight: 500,
-                      marginBottom: "4px",
-                    }}
-                    labelStyle={{
-                      fontWeight: 600,
-                      marginBottom: "6px",
-                      color: "#1f2937",
-                    }}
-                  />
-
-                  <Bar
-                    dataKey="count"
-                    fill="#ffffff"
-                    radius={[8, 8, 0, 0]}
-                    barSize={50}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div> */}
-
             <div
               className={`w-full flex justify-center items-end relative ${
                 width >= 1000
@@ -1277,32 +1249,6 @@ const Patientlist = ({
                   )}
                 </div>
               </div>
-
-              {/* <div
-                          className={` flex flex-row items-center gap-4 ${
-                            width >= 1265
-                              ? "w-[30%] justify-end"
-                              : "w-full justify-center"
-                          }`}
-                        >
-                          {["COMPLETED", "PENDING"].map((status) => (
-                            <p
-                              key={status}
-                              onClick={() => setcompletionstatus(status)}
-                              className={`
-                                ${raleway.className}
-                                font-semibold text-xs px-3 py-1 flex items-center rounded-2xl cursor-pointer transition
-                                ${
-                                  completionstatus === status
-                                    ? "bg-[#319B8F] text-white"
-                                    : "bg-gray-300 text-gray-700"
-                                }
-                              `}
-                            >
-                              {status}
-                            </p>
-                          ))}
-                        </div> */}
             </div>
 
             <div
@@ -1974,15 +1920,76 @@ const Patientlist = ({
                           </div>
 
                           <div
-                            className={`flex items-center justify-center ${
-                              width < 700 ? "w-full" : "w-3/7"
+                            className={`flex flex-col items-center gap-2 ${
+                              width < 700 ? "w-full" : "w-4/7"
                             }`}
                           >
-                            <Image
-                              src={UploadProfile}
-                              alt="Upload Profile"
-                              className={`w-full h-full`}
-                            />
+                            <div
+                              className="w-40 h-40 cursor-pointer"
+                              onClick={() => fileInputRef.current.click()}
+                              style={{ position: "relative" }}
+                            >
+                              {isBlobUrl ? (
+                                // Plain <img> for blob URLs
+                                <img
+                                  src={previewUrl}
+                                  alt="Preview"
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "fill",
+                                    borderRadius: 8,
+                                  }}
+                                  className="border"
+                                />
+                              ) : (
+                                // Next.js Image for static or remote URLs
+                                <Image
+                                  src={profpat?.avatar}
+                                  alt="Upload or Capture"
+                                  layout="fill"
+                                  objectFit="cover"
+                                  className="rounded border w-full h-full"
+                                />
+                              )}
+
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                style={{ display: "none" }}
+                                ref={fileInputRef}
+                                onChange={handleImageChange}
+                              />
+                            </div>
+                            <div>
+                              {showimgupload && (
+                                <div className={` ${raleway.className} w-full flex flex-row justify-center items-center gap-8`}>
+                                  <div className="w-1/2 flex flex-row justify-start items-center">
+                                    <p
+                                      className="font-semibold italic text-black text-md cursor-pointer"
+                                      onClick={resetImage}
+                                    >
+                                      RESET
+                                    </p>
+                                  </div>
+                                  <div className="w-1/2 flex flex-row justify-end items-center">
+                                    <p
+                                      className=" cursor-pointer text-center text-black text-md font-semibold "
+                                      
+                                      onClick={() => {
+                                        handleUpload({
+                                          uhid1: profpat.uhid,
+                                          type1: "patient",
+                                        });
+                                      }}
+                                    >
+                                      UPLOAD
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>

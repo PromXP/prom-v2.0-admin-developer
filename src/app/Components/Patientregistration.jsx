@@ -121,76 +121,75 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
   };
 
   const handleManualDateChange = (e) => {
-  let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
 
-  if (value.length >= 3 && value.length <= 4) {
-    value = value.slice(0, 2) + "-" + value.slice(2);
-  } else if (value.length > 4 && value.length <= 8) {
-    value =
-      value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-  } else if (value.length > 8) {
-    value = value.slice(0, 8);
-    value =
-      value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-  }
-
-  // Show raw value until full date entered
-  setSelectedDate(value);
-
-  if (value.length === 10) {
-    const [dayStr, monthStr, yearStr] = value.split("-");
-    const day = parseInt(dayStr, 10);
-    const month = parseInt(monthStr, 10);
-    const year = parseInt(yearStr, 10);
-
-    const today = new Date();
-    const currentYear = today.getFullYear();
-
-    // Basic validations
-    if (
-      day < 1 ||
-      day > 31 ||
-      month < 1 ||
-      month > 12 ||
-      year >= currentYear
-    ) {
-      showWarning("Please enter a valid date of birth.");
-      setSelectedDate("");
-      return;
+    if (value.length >= 3 && value.length <= 4) {
+      value = value.slice(0, 2) + "-" + value.slice(2);
+    } else if (value.length > 4 && value.length <= 8) {
+      value =
+        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+    } else if (value.length > 8) {
+      value = value.slice(0, 8);
+      value =
+        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
     }
 
-    // Check valid real date
-    const manualDate = new Date(`${year}-${month}-${day}`);
+    // Show raw value until full date entered
+    setSelectedDate(value);
 
-    if (
-      manualDate.getDate() !== day ||
-      manualDate.getMonth() + 1 !== month ||
-      manualDate.getFullYear() !== year
-    ) {
-      showWarning("Invalid date combination. Please enter a correct date.");
-      setSelectedDate("");
-      return;
+    if (value.length === 10) {
+      const [dayStr, monthStr, yearStr] = value.split("-");
+      const day = parseInt(dayStr, 10);
+      const month = parseInt(monthStr, 10);
+      const year = parseInt(yearStr, 10);
+
+      const today = new Date();
+      const currentYear = today.getFullYear();
+
+      // Basic validations
+      if (
+        day < 1 ||
+        day > 31 ||
+        month < 1 ||
+        month > 12 ||
+        year >= currentYear
+      ) {
+        showWarning("Please enter a valid date of birth.");
+        setSelectedDate("");
+        return;
+      }
+
+      // Check valid real date
+      const manualDate = new Date(`${year}-${month}-${day}`);
+
+      if (
+        manualDate.getDate() !== day ||
+        manualDate.getMonth() + 1 !== month ||
+        manualDate.getFullYear() !== year
+      ) {
+        showWarning("Invalid date combination. Please enter a correct date.");
+        setSelectedDate("");
+        return;
+      }
+
+      // Check if future or today
+      today.setHours(0, 0, 0, 0);
+      manualDate.setHours(0, 0, 0, 0);
+
+      if (manualDate >= today) {
+        showWarning("Birth date cannot be today or a future date.");
+        setSelectedDate("");
+        return;
+      }
+
+      // ✅ Final format as yyyy-mm-dd
+      const formattedDate = `${manualDate.getFullYear()}-${String(
+        manualDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(manualDate.getDate()).padStart(2, "0")}`;
+
+      setSelectedDate(formattedDate);
     }
-
-    // Check if future or today
-    today.setHours(0, 0, 0, 0);
-    manualDate.setHours(0, 0, 0, 0);
-
-    if (manualDate >= today) {
-      showWarning("Birth date cannot be today or a future date.");
-      setSelectedDate("");
-      return;
-    }
-
-    // ✅ Final format as yyyy-mm-dd
-    const formattedDate = `${manualDate.getFullYear()}-${String(
-      manualDate.getMonth() + 1
-    ).padStart(2, "0")}-${String(manualDate.getDate()).padStart(2, "0")}`;
-
-    setSelectedDate(formattedDate);
-  }
-};
-
+  };
 
   const handleManualsurgeryDateChange = (e) => {
     let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
@@ -424,7 +423,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
 
   const [mounted, setMounted] = useState(false);
 
-
   const handleCreatePatient = async () => {
     let adminUhid = "";
     // ✅ List of fields to validate
@@ -432,8 +430,8 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
     }
     const requiredFields = [
-      {value: adminUhid, message: "Admin UHID is missing" },
-      {value: uhid, message: "Patient UHID is required" },
+      { value: adminUhid, message: "Admin UHID is missing" },
+      { value: uhid, message: "Patient UHID is required" },
       { value: firstName, message: "First Name is required" },
       { value: lastName, message: "Last Name is required" },
       { value: email, message: "Email is required" },
@@ -471,7 +469,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       return;
     }
 
-
     // ✅ Build payload after validation
     const payload = {
       base: {
@@ -507,9 +504,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
           selectedFunding === "OTHER" ? otherFunding : selectedFunding,
         idproof: selectedIDs,
         patient_current_status:
-        selectedKnees.length > 0 ? selectedKnees.join(", ") : "NONE",
-        surgery_date_left: selectedKnees.includes("LEFT") ? surgerydate : "0001-01-01",
-        surgery_date_right: selectedKnees.includes("RIGHT") ? surgerydate : "0001-01-01",
+          selectedKnees.length > 0 ? selectedKnees.join(", ") : "NONE",
+        surgery_date_left: selectedKnees.includes("LEFT")
+          ? surgerydate
+          : "0001-01-01",
+        surgery_date_right: selectedKnees.includes("RIGHT")
+          ? surgerydate
+          : "0001-01-01",
       },
     };
 
@@ -517,15 +518,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     // return
 
     try {
-      const res = await axios.post(
-        `${API_URL}patients/full`,
-        payload
-      );
+      const res = await axios.post(`${API_URL}patients/full`, payload);
       console.log("✅ Patient created:", res.data);
       showWarning("Patient created successfully!");
+      handleUpload();
     } catch (error) {
       console.error("❌ Error creating patient:", error);
-      showWarning("Failed to create patient"+error);
+      showWarning("Failed to create patient" + error);
     }
   };
 
@@ -533,6 +532,32 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  const handleUpload = async () => {
+    if (!profileImage) {
+      setError("Please select or capture an image.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("uhid", uhid);
+    formData.append("usertype", "patient"); // <-- Make sure userType is defined
+    formData.append("profile_image", profileImage);
+
+    try {
+      const res = await axios.post(
+        `${API_URL}upload-profile-photo`,
+        formData
+      );
+
+      console.log("Profile upload success:", res.data);
+      showWarning("Image uploaded successfully.");
+      window.location.reload();
+    } catch (err) {
+      console.error("Profile upload failed:", err);
+      showWarning("Upload failed.");
+    }
+  };
 
   if (!isOpenacc || !mounted) return null;
 
@@ -940,7 +965,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                           resize-none
                           ${inter.className}
                         `}
-                        rows={5}
+                        rows={8}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                       />
@@ -950,11 +975,44 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         width < 700 ? "w-full" : "w-3/7"
                       }`}
                     >
-                      <Image
-                        src={UploadProfile}
-                        alt="Upload Profile"
-                        className={`w-2/3 h-full`}
-                      />
+                      <div
+                        className="w-[256px] h-[256px] cursor-pointer"
+                        onClick={() => fileInputRef.current.click()}
+                        style={{ position: "relative" }}
+                      >
+                        {isBlobUrl ? (
+                          // Plain <img> for blob URLs
+                          <img
+                            src={previewUrl}
+                            alt="Preview"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "fill",
+                              borderRadius: 8,
+                            }}
+                            className="border"
+                          />
+                        ) : (
+                          // Next.js Image for static or remote URLs
+                          <Image
+                            src={previewUrl || UploadProfile}
+                            alt="Upload or Capture"
+                            layout="fill"
+                            objectFit="cover"
+                            className="rounded border w-full h-full"
+                          />
+                        )}
+
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          style={{ display: "none" }}
+                          ref={fileInputRef}
+                          onChange={handleImageChange}
+                        />
+                      </div>
                     </div>
                   </div>
 

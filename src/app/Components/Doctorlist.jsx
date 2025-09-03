@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import ReactDOM from "react-dom";
 import Image from "next/image";
 
 import axios from "axios";
@@ -30,6 +31,8 @@ import Reportimg from "@/app/Assets/report.png";
 import Notify from "@/app/Assets/notify.png";
 import Call from "@/app/Assets/call.png";
 import Error from "@/app/Assets/error.png";
+import CloseIcon from "@/app/Assets/closeiconwindow.png";
+
 
 import {
   ChevronRightIcon,
@@ -115,7 +118,12 @@ const Doctorlist = ({
           uhid: doc.uhid,
           compliance: doc.overall_compliance,
           count: doc.total_patients,
-          avatar: doc.gender === "male" ? Manavatar : Womanavatar,
+          avatar:
+            doc?.photo && doc?.photo !== "NA"
+              ? doc?.photo
+              : doc.gender === "male"
+              ? Manavatar
+              : Womanavatar,
         }));
         console.log(doctorPatients);
         setPatients(doctorPatients);
@@ -126,9 +134,7 @@ const Doctorlist = ({
         } else {
           setError("Network error");
         }
-      } finally {
-        setLoading(false);
-      }
+      } 
     };
 
     fetchPatients();
@@ -166,8 +172,6 @@ const Doctorlist = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-
-
   const searchedPatients = useMemo(() => {
     if (!searchTerm) return patients; // If empty, show all
     return patients.filter(
@@ -192,7 +196,7 @@ const Doctorlist = ({
 
   const displayedPatients = searchTerm ? searchedPatients : sortedPatients;
 
-    const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
+  const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
   // Slice the data
   const paginatedPatients = displayedPatients.slice(
     (currentPage - 1) * rowsPerPage,
@@ -246,6 +250,73 @@ const Doctorlist = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const [profileImage, setProfileImage] = useState(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [showimgupload, setimgupload] = useState(false);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file && e.target.files) {
+      setProfileImage(file);
+      setPreviewUrl(URL.createObjectURL(file));
+
+      setimgupload(true);
+    }
+  };
+
+  const resetImage = () => {
+    setProfileImage(null);
+    setPreviewUrl(null);
+
+    // Optionally clear the file input value
+    if (fileInputRef.current) {
+      fileInputRef.current.value = null;
+    }
+    setimgupload(false);
+  };
+
+  const handleUpload = async ({ uhid1, type1 }) => {
+    if (!profileImage) {
+      setError("Please select or capture an image.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("uhid", uhid1);
+    formData.append("usertype", type1); // <-- Make sure userType is defined
+    formData.append("profile_image", profileImage);
+
+    try {
+      const res = await axios.post(`${API_URL}upload-profile-photo`, formData);
+
+      console.log("Profile upload success:", res.data);
+      showWarning("Image Upload Successfull");
+      setimgupload(false);
+    } catch (err) {
+      console.error("Profile upload failed:", err);
+      showWarning("Image Upload failed");
+      setimgupload(true);
+    }
+  };
+
+  const isBlobUrl = previewUrl && previewUrl.startsWith("blob:");
+
+  const fileInputRef = useRef(null); // To programmatically trigger the file input
+
+  const [showprof, setshowprof] = useState(false);
+  const [profpat, setshowprofpat] = useState([]);
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const showWarning = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 4000);
+  };
 
   return (
     <>
@@ -471,6 +542,7 @@ const Doctorlist = ({
               <div
                 className={`${poppins.className} h-[5%] flex flex-row items-center justify-end gap-4 px-4 text-[13px] font-medium text-gray-600`}
               >
+
                 {/* Rows per page */}
                 <span>Records per page:</span>
                 <select
@@ -542,6 +614,7 @@ const Doctorlist = ({
                     </svg>
                   </button>
                 </div>
+
               </div>
 
               <div
@@ -569,6 +642,12 @@ const Doctorlist = ({
                         src={patient.avatar}
                         alt="Avatar"
                         className="rounded-full cursor-pointer w-12 h-12"
+                        width={40}
+                        height={40}
+                        onClick={() => {
+                          setshowprof(true);
+                          setshowprofpat(patient);
+                        }}
                       />
                       <div className="flex flex-col gap-3">
                         <p
@@ -663,6 +742,180 @@ const Doctorlist = ({
 
         {width >= 1000 && <div className="w-[2%]"></div>}
       </div>
+
+      {showprof &&
+        ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 z-40 "
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+            }}
+          >
+            <div
+              className={`
+                  min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
+                  ${width < 950 ? "gap-4 w-full" : "w-1/3"}
+                  p-4
+                `}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                  width < 1095 ? "flex flex-col gap-4" : ""
+                } max-h-[92vh] rounded-2xl`}
+              >
+                <div
+                  className={`w-full bg-[#FCFCFC]  ${
+                    width < 760 ? "h-fit" : "h-[80%]"
+                  } `}
+                >
+                  <div
+                    className={`w-full h-full rounded-lg flex flex-col gap-12 ${
+                      width < 760 ? "py-0" : "py-4 px-8"
+                    }`}
+                  >
+                    <div className="flex flex-row justify-between items-center w-full">
+                      <p
+                        className={`${inter.className} text-2xl font-semibold text-black`}
+                      >
+                        Doctor Profile Image
+                      </p>
+
+                      <div
+                        className={`flex flex-row gap-4 items-center justify-center`}
+                      >
+                  
+                        <Image
+                          src={CloseIcon}
+                          alt="Close"
+                          className={`w-fit h-6 cursor-pointer`}
+                          onClick={() => {
+                            setshowprof(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      
+                      <div
+                        className={`flex flex-col gap-2 justify-between w-full`}
+                      >
+                        <div
+                          className={`w-full flex  gap-2 ${
+                            width < 700 ? "flex-col" : "flex-row"
+                          }`}
+                        >
+                          <div
+                            className={`flex flex-col items-center gap-2 w-full`}
+                          >
+                            <div
+                              className="w-40 h-40 cursor-pointer"
+                              onClick={() => fileInputRef.current.click()}
+                              style={{ position: "relative" }}
+                            >
+                              {isBlobUrl ? (
+                                // Plain <img> for blob URLs
+                                <img
+                                  src={previewUrl}
+                                  alt="Preview"
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "fill",
+                                    borderRadius: 8,
+                                  }}
+                                  className="border"
+                                />
+                              ) : (
+                                // Next.js Image for static or remote URLs
+                                <Image
+                                  src={profpat?.avatar}
+                                  alt="Upload or Capture"
+                                  layout="fill"
+                                  objectFit="cover"
+                                  className="rounded border w-full h-full"
+                                />
+                              )}
+
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                style={{ display: "none" }}
+                                ref={fileInputRef}
+                                onChange={handleImageChange}
+                              />
+                            </div>
+                            <div>
+                              {showimgupload && (
+                                <div
+                                  className={` ${raleway.className} w-full flex flex-row justify-center items-center gap-8`}
+                                >
+                                  <div className="w-1/2 flex flex-row justify-start items-center">
+                                    <p
+                                      className="font-semibold italic text-black text-md cursor-pointer"
+                                      onClick={resetImage}
+                                    >
+                                      RESET
+                                    </p>
+                                  </div>
+                                  <div className="w-1/2 flex flex-row justify-end items-center">
+                                    <p
+                                      className=" cursor-pointer text-center text-black text-md font-semibold "
+                                      onClick={() => {
+                                        handleUpload({
+                                          uhid1: profpat.uhid,
+                                          type1: "doctor",
+                                        });
+                                      }}
+                                    >
+                                      UPLOAD
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {showAlert && (
+                    <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+                      <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">
+                        {alertMessage}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <style>
+              {`
+              .inline-scroll::-webkit-scrollbar {
+                width: 12px;
+              }
+              .inline-scroll::-webkit-scrollbar-track {
+                background: transparent;
+              }
+              .inline-scroll::-webkit-scrollbar-thumb {
+                background-color: #076C40;
+                border-radius: 8px;
+              }
+        
+              .inline-scroll {
+                scrollbar-color: #076C40 transparent;
+              }
+            `}
+            </style>
+          </div>,
+          document.body // portal target
+        )}
+
       <Patientregistration
         isOpenacc={isOpenaccpat}
         onCloseacc={() => setIsOpenaccpat(false)}
