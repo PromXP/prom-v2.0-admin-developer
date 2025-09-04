@@ -212,14 +212,12 @@ const Patientreport = () => {
           questionnaire_right: patient.Medical_Right ?? {},
           questionnaireStatusLeft: checkCompletion(patient.Medical_Left),
           questionnaireStatusRight: checkCompletion(patient.Medical_Right),
+          opd: patient.Appointments,
         };
 
         setpatientbasic(pickedData);
 
-        console.log(
-          "Fetched patient reminder data:",
-          patient
-        );
+        console.log("Fetched patient reminder data:", pickedData);
       } catch (err) {
         console.error("Error fetching patient reminder:", err);
       }
@@ -368,12 +366,6 @@ const Patientreport = () => {
   const [surgerydatright, setsurgeryDateright] = useState("");
 
   // ✅ Load values from patientbasic when it changes
-  useEffect(() => {
-    if (patientbasic) {
-      setsurgeryDateleft(patientbasic.surgery_left || "");
-      setsurgeryDateright(patientbasic.surgery_right || "");
-    }
-  }, [patientbasic]);
 
   const addDays = (date, days) => {
     if (!date) return "NA"; // invalid or missing date
@@ -655,12 +647,12 @@ const Patientreport = () => {
         return;
       }
 
-      // 🚨 Past date check
-      if (manualDate < today) {
-        showWarning("Past dates are not allowed");
-        setsurgeryDateleft("");
-        return;
-      }
+      // // 🚨 Past date check
+      // if (manualDate < today) {
+      //   showWarning("Past dates are not allowed");
+      //   setsurgeryDateleft("");
+      //   return;
+      // }
 
       // Check if future or today
       today.setHours(0, 0, 0, 0);
@@ -727,12 +719,12 @@ const Patientreport = () => {
         return;
       }
 
-      // 🚨 Past date check
-      if (manualDate < today) {
-        showWarning("Past dates are not allowed");
-        setsurgeryDateright("");
-        return;
-      }
+      // // 🚨 Past date check
+      // if (manualDate < today) {
+      //   showWarning("Past dates are not allowed");
+      //   setsurgeryDateright("");
+      //   return;
+      // }
 
       // Check if future or today
       today.setHours(0, 0, 0, 0);
@@ -781,6 +773,123 @@ const Patientreport = () => {
       }
     }
   };
+
+  const [opd, setopd] = useState("");
+  const [finalopd, setfinalopd] = useState("");
+
+  const handleopd = (e) => {
+    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+
+    if (value.length >= 3 && value.length <= 4) {
+      value = value.slice(0, 2) + "-" + value.slice(2);
+    } else if (value.length > 4 && value.length <= 8) {
+      value =
+        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+    } else if (value.length > 8) {
+      value = value.slice(0, 8);
+      value =
+        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+    }
+
+    // Until full date entered, show raw value
+    setopd(value);
+
+    if (value.length === 10) {
+      const [dayStr, monthStr, yearStr] = value.split("-");
+      const day = parseInt(dayStr, 10);
+      const month = parseInt(monthStr, 10);
+      const year = parseInt(yearStr, 10);
+
+      const today = new Date();
+      const currentYear = today.getFullYear();
+
+      // Basic validations
+      if (day < 1 || day > 31 || month < 1 || month > 12) {
+        showWarning("Please enter a valid surgery date");
+        setopd("");
+        setfinalopd("");
+        return;
+      }
+
+      // Check valid real date
+      const manualDate = new Date(`${year}-${month}-${day}`);
+      if (
+        manualDate.getDate() !== day ||
+        manualDate.getMonth() + 1 !== month ||
+        manualDate.getFullYear() !== year
+      ) {
+        showWarning("Invalid date combination. Please enter a correct date.");
+        setopd("");
+        setfinalopd("");
+        return;
+      }
+
+      // // 🚨 Past date check
+      // if (manualDate < today) {
+      //   showWarning("Past dates are not allowed");
+      //   setsurgeryDateright("");
+      //   return;
+      // }
+
+      manualDate.setHours(0, 0, 0, 0);
+
+      // If all valid, format as "dd Mmm yyyy"
+      const formattedDate = manualDate.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "numeric",
+        year: "numeric",
+      });
+
+      const manualDate1 = new Date(Date.UTC(year, month - 1, day));
+      const isoDate = manualDate1.toISOString(); // always correct UTC day
+
+      // e.g. "2025-09-02T00:00:00.000Z"
+
+      // If you want just YYYY-MM-DD (string only, no time):
+      const isoDateOnly = `${year.toString().padStart(4, "0")}-${month
+        .toString()
+        .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+
+      console.log("ISO full:", isoDate);
+      console.log("ISO date only:", isoDateOnly);
+
+      setopd(isoDateOnly); // for backend (UTC safe)
+      setfinalopd(isoDate); // if you also need just the date
+    }
+  };
+
+  const handleupdateopd = async () => {
+    if (!finalopd) {
+      showWarning("Enter the OPD");
+      return;
+    }
+
+    try {
+      // ✅ API call
+      const response = await axios.put(
+        `${API_URL}patients/update/${patientbasic?.uhid}`,
+        { appointment_start: finalopd }
+      );
+
+      // ✅ Update local state
+      setopd("");
+      setfinalopd("");
+      window.location.reload();
+      showWarning("OPD updated successfully");
+    } catch (error) {
+      console.error("Error updating opd:", error);
+      showWarning("Failed to update OPD");
+    }
+  };
+
+  useEffect(() => {
+    if (patientbasic) {
+      setsurgeryDateleft(patientbasic.surgery_left || "");
+      setsurgeryDateright(patientbasic.surgery_right || "");
+      const opdStart = patientbasic?.opd?.[0]?.start;
+      setopd(opdStart ? opdStart.split("T")[0] : "");
+    }
+  }, [patientbasic]);
 
   const handleassignquestionnaires = async () => {
     if (!patientbasic || selected.length === 0) {
@@ -878,7 +987,7 @@ const Patientreport = () => {
         payload
       );
       showWarning("Questionnaire Assigned Successfully");
-      handleSendremainder();
+      // handleSendremainder();
     } catch (error) {
       if (axios.isAxiosError(error)) {
         showWarning(error.response?.data || error.message);
@@ -939,7 +1048,9 @@ const Patientreport = () => {
       window.location.reload();
     } catch (err) {
       if (err.response) {
-        showWarning(err.response.data.detail || "Failed to reset questionnaires");
+        showWarning(
+          err.response.data.detail || "Failed to reset questionnaires"
+        );
       } else {
         showWarning("Network error");
       }
@@ -990,15 +1101,16 @@ const Patientreport = () => {
     console.log("Payload for reset questionnaire:", payload);
 
     try {
-      const res = await axios.delete(
-        `${API_URL}delete-questionnaires`,
-        {data: payload}
-      );
+      const res = await axios.delete(`${API_URL}delete-questionnaires`, {
+        data: payload,
+      });
       showWarning("Questionnaire Delete Successful");
       window.location.reload();
     } catch (err) {
       if (err.response) {
-        showWarning(err.response.data.message || "Failed to delete questionnaire");
+        showWarning(
+          err.response.data.message || "Failed to delete questionnaire"
+        );
       } else {
         showWarning("Network error");
       }
@@ -1234,57 +1346,90 @@ const Patientreport = () => {
               }`}
             >
               <div
-                className={`flex flex-row gap-4 items-center justify-end ${
-                  width >= 500 ? "w-1/6" : " w-full"
+                className={`flex  gap-4 items-center justify-start ${
+                  width >= 500 ? "w-1/2 flex-row" : " w-full flex-col"
                 }`}
               >
-                <button
-                  className={`${
-                    raleway.className
-                  } text-sm px-4 py-[0.5px] w-1/2 rounded-lg font-semibold   ${
-                    !surgerydatleft || surgerydatleft === "NA"
-                      ? "cursor-not-allowed opacity-50"
-                      : "cursor-pointer"
-                  }
+                <div
+                  className={`flex flex-row  ${
+                    width > 500
+                      ? "w-1/2 justify-start gap-4"
+                      : "w-full gap-4 justify-center"
+                  }  `}
+                >
+                  <button
+                    className={`${
+                      raleway.className
+                    } text-sm px-4 py-[0.5px] w-1/5 rounded-lg font-semibold   ${
+                      !surgerydatleft || surgerydatleft === "NA"
+                        ? "cursor-not-allowed opacity-50"
+                        : "cursor-pointer"
+                    }
                   ${
                     handlequestableswitch === "left"
                       ? "bg-[#2B333E] text-white"
                       : "bg-[#CAD9D6] text-black"
                   }
                   `}
-                  onClick={
-                    !surgerydatleft || surgerydatleft === "NA"
-                      ? undefined
-                      : () => {
-                          sethandlequestableswitch("left");
-                        }
-                  }
-                >
-                  Left
-                </button>
-                <button
-                  className={`${
-                    raleway.className
-                  } text-sm px-4 py-[0.5px] w-1/2 rounded-lg font-semibold   ${
-                    !surgerydatright || surgerydatright === "NA"
-                      ? "cursor-not-allowed opacity-50"
-                      : "cursor-pointer"
-                  }
+                    onClick={
+                      !surgerydatleft || surgerydatleft === "NA"
+                        ? undefined
+                        : () => {
+                            sethandlequestableswitch("left");
+                          }
+                    }
+                  >
+                    Left
+                  </button>
+                  <button
+                    className={`${
+                      raleway.className
+                    } text-sm  py-[0.5px] w-1/5 rounded-lg font-semibold   ${
+                      !surgerydatright || surgerydatright === "NA"
+                        ? "cursor-not-allowed opacity-50"
+                        : "cursor-pointer"
+                    }
                   ${
                     handlequestableswitch === "right"
                       ? "bg-[#2B333E] text-white"
                       : "bg-[#CAD9D6] text-black"
                   }`}
-                  onClick={
-                    !surgerydatright || surgerydatright === "NA"
-                      ? undefined
-                      : () => {
-                          sethandlequestableswitch("right");
-                        }
-                  }
+                    onClick={
+                      !surgerydatright || surgerydatright === "NA"
+                        ? undefined
+                        : () => {
+                            sethandlequestableswitch("right");
+                          }
+                    }
+                  >
+                    Right
+                  </button>
+                </div>
+                <div
+                  className={`${
+                    width < 700 ? "h-full w-full" : "h-3/7 w-2/5 "
+                  } flex flex-row gap-2 justify-center items-center`}
                 >
-                  Right
-                </button>
+                  <div className="relative w-1/2">
+                    <input
+                      type="text"
+                      placeholder="OPD (dd-mm-yyyy) *"
+                      value={opd}
+                      onChange={handleopd}
+                      className={` ${inter.className} w-full h-fit text-black py-1 px-4 placeholder-[#30263B] rounded-sm text-sm font-medium outline-none`}
+                      maxLength={10}
+                      style={{
+                        backgroundColor: "rgba(217, 217, 217, 0.5)",
+                      }}
+                    />
+                  </div>
+                  <Image
+                    src={Calendar}
+                    alt="OPD date"
+                    className="w-6 h-10 cursor-pointer"
+                    onClick={handleupdateopd}
+                  />
+                </div>
               </div>
               <Image src={Heatmap} alt="heatmap" />
             </div>
