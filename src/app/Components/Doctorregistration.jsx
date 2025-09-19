@@ -74,7 +74,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
       }
       try {
         const res = await axios.get(`${API_URL}getadminname/${adminUhid}`);
-        setAdminEmail(res.data.email);
+        setAdminEmail(res.data.admin_email);
       } catch (err) {
         // console.error("❌ Error fetching patients:", err);
         if (err.response) {
@@ -292,7 +292,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
     };
     console.log("Submitting payload:", payload);
     try {
-      const res = await axios.post(`${API_URL}registerdoctor`, payload);
+      const res = await axios.post(`${API_URL}doctor/fhir`, payload);
       console.log("✅ Doctor created:", res.data);
       showWarning("Doctor created successfully!");
     } catch (err) {

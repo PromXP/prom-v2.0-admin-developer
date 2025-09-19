@@ -472,7 +472,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     // ✅ Build payload after validation
     const payload = {
       base: {
-        uhid,
+        uhid: uhid,
         first_name: firstName,
         last_name: lastName,
         password: "patient@123", // adjust as needed
@@ -481,11 +481,11 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         gender: selectedGender.toLowerCase(),
       },
       contact: {
-        uhid,
-        email,
+        uhid: uhid,
+        email: email,
         phone_number: phone,
         alternatenumber: alterphone || "",
-        address,
+        address: address,
         doctor_uhid_left: "NA",
         doctor_uhid_right: "NA",
         admin_uhid: adminUhid,
@@ -493,7 +493,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         profile_picture_url: "NA",
       },
       medical: {
-        uhid,
+        uhid: uhid,
         blood_grp: selectedOptiondrop || "",
         height: Number(heightbmi),
         weight: Number(weight),

@@ -167,8 +167,8 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
     };
     console.log("Follow-up payload:", payload);
     try {
-      const response = await axios.patch(
-        `${API_URL}patients/add-followup`,
+      const response = await axios.post(
+        `${API_URL}provenance/followup`,
         payload
       );
       console.log("Follow-up added:", response.data);

@@ -141,7 +141,7 @@ const Patientlist = ({
         }
 
         const res = await axios.get(
-          `${API_URL}patients-all-by-admin-uhid/${adminUhid}`
+          `${API_URL}get_admin_patients/${adminUhid}`
         );
         // console.log("✅ API Response:", res.data);
 
@@ -158,7 +158,7 @@ const Patientlist = ({
             : "NA",
           gender:
             p.Patient?.gender?.toLowerCase() === "male" ? "Male" : "Female",
-          uhid: p.uhid,
+          uhid: p.Patient?.uhid,
           dob: p.Patient?.birthDate ?? "NA",
           period: p.Patient_Status_Left || "NA", // you can decide logic here
           period_right: p.Patient_Status_Right || "NA",
@@ -261,6 +261,7 @@ const Patientlist = ({
     if (side) {
       const surgeryDate =
         side === "left" ? patient.surgery_left : patient.surgery_right;
+      console.log("Side filter",surgeryDate);
 
       // ❌ filter out if surgery date is missing or "NA"
       if (!surgeryDate || surgeryDate === "NA") return false;
@@ -544,11 +545,16 @@ const Patientlist = ({
     setPhone(phoneInput); // save edited value
     setIsEditPhone(false);
 
+    const payload = {
+      field: "mobile",
+      value: phoneInput
+    };
+
     try {
       // ✅ API call
-      const response = await axios.put(
-        `${API_URL}patients/update/${profpat?.uhid}`,
-        { phone: phoneInput }
+      const response = await axios.patch(
+        `${API_URL}patients/update-field/${profpat?.uhid}`,
+        payload
       );
 
       // ✅ Update local state
@@ -598,10 +604,15 @@ const Patientlist = ({
       return;
     }
 
+    const payload = {
+      field: "alt_mobile",
+      value: alterphoneInput
+    }
+
     try {
-      const response = await axios.put(
-        `${API_URL}patients/update/${profpat?.uhid}`,
-        { home_phone: alterphoneInput }
+      const response = await axios.patch(
+        `${API_URL}patients/update-field/${profpat?.uhid}`,
+        payload
       );
 
       setAlterPhone(alterphoneInput);
@@ -661,11 +672,16 @@ const Patientlist = ({
     setEmail(emailInput); // update locally
     setIsEditEmail(false);
 
+    const payload={
+      field: "email",
+      value: emailInput
+    }
+
     try {
       // ✅ API call
-      const response = await axios.put(
-        `${API_URL}patients/update/${profpat?.uhid}`,
-        { email: emailInput }
+      const response = await axios.patch(
+        `${API_URL}patients/update-field/${profpat?.uhid}`,
+        payload
       );
 
       // ✅ Update local state again to be safe
@@ -729,13 +745,14 @@ const Patientlist = ({
     }
 
     const payload = {
-      [id]: idInputs[id],
+      field: [id],
+      value: idInputs[id],
     };
 
     console.log("ID inputs", payload);
 
     try {
-      await axios.put(`${API_URL}patients/update/${profpat?.uhid}`, payload);
+      await axios.put(`${API_URL}patients/update-field/${profpat?.uhid}`, payload);
 
       setSelectedIDs((prev) => ({ ...prev, [id]: idInputs[id] }));
       setEditingID(null); // close edit
@@ -770,19 +787,21 @@ const Patientlist = ({
     setIsEditAddress(false);
 
     // 🔥 API call or PUT only { "address": addressInput }
-    console.log({ address: addressInput });
+    console.log(addressInput+" "+profpat?.uhid);
+    const payload = {
+      field:"address",
+      value: addressInput,
+    };
 
     try {
-      await axios.put(`${API_URL}patients/update/${profpat?.uhid}`, {
-        address: addressInput,
-      });
+      await axios.patch(`${API_URL}patients/update-field/${profpat?.uhid}`, payload);
 
       setAddress(addressInput);
       setIsEditAddress(null); // close edit
       showWarning(`Address updated successfully`);
     } catch (error) {
-      console.error("Error updating ID proof:", error);
-      showWarning(`Failed to update ${id}`);
+      console.error("Error updating Address:", error);
+      showWarning(`Failed to update ${profpat?.uhid}`);
     }
   };
 

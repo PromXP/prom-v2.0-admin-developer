@@ -126,9 +126,7 @@ const Patientreport = () => {
 
     const fetchPatientReminder = async () => {
       try {
-        const res = await axios.get(
-          `${API_URL}patients-by-uhid/${patientReportId}`
-        );
+        const res = await axios.get(`${API_URL}patients/${patientReportId}`);
 
         const patient = res.data.patient;
 
@@ -188,7 +186,7 @@ const Patientreport = () => {
           gender: patient.Patient?.gender ?? "NA",
           phone: patient.Patient?.phone ?? "NA",
           email: patient.Patient?.email ?? "NA",
-          uhid: patient.uhid ?? "NA",
+          uhid: patient.Patient?.uhid ?? "NA",
           statusLeft: patient.Patient_Status_Left ?? "NA",
           statusRight: patient.Patient_Status_Right ?? "NA",
           leftCompleted: patient.Medical_Left_Completed_Count ?? "NA",
@@ -266,7 +264,7 @@ const Patientreport = () => {
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const res = await axios.get(`${API_URL}get_admin_doctor_page`);
+        const res = await axios.get(`${API_URL}get_doctor_page`);
 
         const doctors = res.data.total_doctors || [];
         const doctorPatients = doctors.map((doc, i) => ({
@@ -310,15 +308,15 @@ const Patientreport = () => {
 
     const payload = {
       ...(docside === "LEFT"
-        ? { doctor_left: selectedDoctor }
-        : { doctor_right: selectedDoctor }),
+        ? { field: "left_doctor", value: selectedDoctor }
+        : { field: "right_doctor", value: selectedDoctor }),
     };
 
     console.log("Payload for doctor assignment:", payload);
 
     try {
-      const res = await axios.put(
-        `${API_URL}update-doctor/${patientbasic?.uhid}`,
+      const res = await axios.patch(
+        `${API_URL}patients/update-field/${patientbasic?.uhid}`,
         payload
       );
       showWarning("Doctor assigned successfully");
@@ -339,14 +337,16 @@ const Patientreport = () => {
     }
 
     const payload = {
-      ...(docside === "LEFT" ? { doctor_left: "NA" } : { doctor_right: "NA" }),
+      ...(docside === "LEFT"
+        ? { field: "left_doctor", value: "NA" }
+        : { field: "right_doctor", value: "NA" }),
     };
 
     console.log("Payload for doctor assignment:", payload);
 
     try {
-      const res = await axios.put(
-        `${API_URL}update-doctor/${patientbasic?.uhid}`,
+      const res = await axios.patch(
+        `${API_URL}patients/update-field/${patientbasic?.uhid}`,
         payload
       );
       showWarning("Doctor removed successfully");
@@ -751,23 +751,31 @@ const Patientreport = () => {
       showWarning("Surgery Date is required");
     }
 
-    const payload = {
-      ...(surgerydatleft && { surgery_date_left: surgerydatleft }),
-      ...(surgerydatright && { surgery_date_right: surgerydatright }),
-    };
-
-    console.log("Payload for surgery schedule:", payload);
-
     try {
-      const res = await axios.put(
-        `${API_URL}patients/update/${patientbasic?.uhid}`,
-        payload
-      );
+      if (surgerydatleft) {
+        const payloadLeft = {
+          field: "surgery_date_left",
+          value: surgerydatleft,
+        };
+        await axios.patch(`${API_URL}patients/update-field/${patientbasic?.uhid}`, payloadLeft);
+      }
+
+      if (surgerydatright) {
+        const payloadRight = {
+          field: "surgery_date_right",
+          value: surgerydatright,
+        };
+        await axios.patch(`${API_URL}patients/update-field/${patientbasic?.uhid}`, payloadRight);
+      }
+
       showWarning("Surgery Scheduled successfully");
       window.location.reload();
     } catch (err) {
       if (err.response) {
-        showWarning(err.response.data.detail || "Failed to schedule surgery");
+        let errorMsg =
+          err.response.data?.detail || "Failed to schedule surgery";
+        if (typeof errorMsg === "object") errorMsg = JSON.stringify(errorMsg);
+        showWarning(errorMsg);
       } else {
         showWarning("Network error");
       }
@@ -866,9 +874,9 @@ const Patientreport = () => {
 
     try {
       // ✅ API call
-      const response = await axios.put(
-        `${API_URL}patients/update/${patientbasic?.uhid}`,
-        { appointment_start: finalopd }
+      const response = await axios.patch(
+        `${API_URL}patients/update-field/${patientbasic?.uhid}`,
+        { field:"start_end" ,value: finalopd }
       );
 
       // ✅ Update local state
@@ -980,13 +988,13 @@ const Patientreport = () => {
     });
 
     console.log("Questionnaires", payload);
-
     try {
-      const res = await axios.post(
-        `${API_URL}assign-questionnaire-bulk`,
+      const res = await axios.put(
+        `${API_URL}add-questionnaire`,
         payload
       );
       showWarning("Questionnaire Assigned Successfully");
+      window.location.reload();
       // handleSendremainder();
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -1035,7 +1043,7 @@ const Patientreport = () => {
     }
 
     const payload = {
-      patient_id: patientbasic?.uhid,
+      uhid: patientbasic?.uhid,
       side: handlequestableswitch,
       period: resetperiod,
     };
@@ -1043,7 +1051,7 @@ const Patientreport = () => {
     console.log("Payload for reset questionnaire:", payload);
 
     try {
-      const res = await axios.put(`${API_URL}reset_questionnaires`, payload);
+      const res = await axios.put(`${API_URL}questionnaires/reset-period`, payload);
       showWarning("Questionnaire Reset Successful");
       window.location.reload();
     } catch (err) {
@@ -1093,7 +1101,7 @@ const Patientreport = () => {
     }
 
     const payload = {
-      patient_id: patientbasic?.uhid,
+      uhid: patientbasic?.uhid,
       side: handlequestableswitch,
       period: resetperiod,
     };
@@ -1101,7 +1109,7 @@ const Patientreport = () => {
     console.log("Payload for reset questionnaire:", payload);
 
     try {
-      const res = await axios.delete(`${API_URL}delete-questionnaires`, {
+      const res = await axios.delete(`${API_URL}questionnaires/delete-period`, {
         data: payload,
       });
       showWarning("Questionnaire Delete Successful");

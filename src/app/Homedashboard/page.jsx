@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
+import axios from "axios";
+import { API_URL } from "../libs/global";
+
 import {
   BarChart,
   Bar,
@@ -126,6 +129,29 @@ const page = () => {
   const handlenavigatereport = () => {
     setActiveTab("Report");
   };
+
+  const[adminame, setAdminname] = useState("");
+
+  useEffect(() => {
+    let adminUhid = null;
+
+    if (typeof window !== "undefined") {
+      adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
+    }
+
+    const fetchPatientReminder = async () => {
+      try {
+        const res = await axios.get(
+          `${API_URL}getadminname/${adminUhid}`
+        );
+        setAdminname(res.data.admin_name);
+      } catch (err) {
+        console.error("Error fetching patient reminder:", err);
+      }
+    };
+
+    fetchPatientReminder();
+  }, [adminame]);
 
   const renderSelectedComponent = () => {
     switch (activeTab) {
@@ -257,7 +283,7 @@ const page = () => {
                     <div
                       className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
                     >
-                      <p className="font-semibold">Admin Name</p>
+                      <p className="font-semibold">{adminame ?? "Admin Name"}</p>
                     </div>
                   </div>
                 </div>

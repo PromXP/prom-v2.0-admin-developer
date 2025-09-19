@@ -95,7 +95,7 @@ const Patientcompliance = ({
     const fetchPatientReminder = async () => {
       try {
         const res = await axios.get(
-          `${API_URL}patients-by-uhid/${selecteduhidcompliance}`
+          `${API_URL}patients/${selecteduhidcompliance}`
         );
 
         const nameMapping = {
@@ -164,7 +164,7 @@ const Patientcompliance = ({
   const updateQuestionnaire = async (data) => {
     console.log("Updating questionnaire:", data);
   try {
-    const response = await axios.put(`${API_URL}reset_single_questionnaire`, data);
+    const response = await axios.put(`${API_URL}questionnaires/reset-single`, data);
 
     console.log("Questionnaire updated:", response.data);
     showWarning("Questionnaire Reset successful!");
@@ -367,11 +367,11 @@ const Patientcompliance = ({
                                 onClick={() => {
                                   if (item.completed !== 1) {
                                     const data = {
-                                      patient_id: selecteduhidcompliance,
+                                      uhid: selecteduhidcompliance,
                                       side: item.side,
-                                      questionnaire: item.name,
+                                      name: item.name,
                                       period: item.period,
-                                      start_date: tempDeadlines[index]
+                                      deadline: tempDeadlines[index]
                                     };
                                     updateQuestionnaire(data);
                                   }

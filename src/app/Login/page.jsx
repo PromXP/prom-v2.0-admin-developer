@@ -93,11 +93,11 @@ const page = () => {
       const res = await axios.post(`${API_URL}auth/login`, {
         identifier: userUHID,
         password: userPassword,
-        type: "admin",
+        role: "admin",
       });
 
       if (typeof window !== "undefined") {
-      sessionStorage.setItem("admin", userUHID);
+        sessionStorage.setItem("admin", userUHID);
       }
 
       // redirect
@@ -110,7 +110,14 @@ const page = () => {
       setuserUHID("");
       setuserPassword("");
       if (err.response) {
-        showWarning(err.response.data.detail || "Login failed");
+        let errorMsg = err.response.data?.detail || "Login failed";
+
+        // If detail is an object (like FastAPI validation error), stringify it
+        if (typeof errorMsg === "object") {
+          errorMsg = JSON.stringify(errorMsg);
+        }
+
+        showWarning(errorMsg);
       } else if (err.request) {
         showWarning("No response from server");
       } else {

@@ -122,15 +122,31 @@ const Activationstatus = ({
       return;
     }
     const update = {
-      activation_status: `${String(status) === "false" ? "true" : "false"}`,
-      activation_comment: `${
+      uhid: uhid,
+      comment: `${
         String(status) === "false" ? "Activation - " : "Deactivation - "
       }${comment}`,
     };
 
+    const update1 = {
+      field: "activation_status",
+      value: `${String(status) === "false" ? "true" : "false"}`,
+    };
+
     try {
-      const res = await axios.put(
-        `${API_URL}patients/update/${uhid}`,
+      const res = await axios.patch(
+        `${API_URL}patients/update-field/${uhid}`,
+
+        update1,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const res1 = await axios.post(
+        `${API_URL}provenance/activation`,
 
         update,
         {
@@ -139,9 +155,8 @@ const Activationstatus = ({
           },
         }
       );
-      console.log("✅ Patient updated:", res.data);
-      showWarning(res.data.message || JSON.stringify(res.data));
-      return res.data;
+      showWarning("Successfully Updated");
+      window.location.reload();
     } catch (error) {
       console.error("❌ Error updating patient:", error);
 

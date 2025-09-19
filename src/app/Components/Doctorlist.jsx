@@ -106,7 +106,7 @@ const Doctorlist = ({
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const res = await axios.get(`${API_URL}get_admin_doctor_page`);
+        const res = await axios.get(`${API_URL}get_doctor_page`);
 
         const doctors = res.data.total_doctors || [];
         const doctorPatients = doctors.map((doc, i) => ({
