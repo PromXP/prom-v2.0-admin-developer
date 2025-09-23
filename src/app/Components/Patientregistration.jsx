@@ -237,11 +237,11 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       }
 
       // 🚨 Past date check
-      if (manualDate < today) {
-        showWarning("Past dates are not allowed");
-        setsurgeryDate("");
-        return;
-      }
+      // if (manualDate < today) {
+      //   showWarning("Past dates are not allowed");
+      //   setsurgeryDate("");
+      //   return;
+      // }
 
       // Check if future or today
       today.setHours(0, 0, 0, 0);

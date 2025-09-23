@@ -419,6 +419,7 @@ const Patientreport = () => {
 
       periodOffsets.forEach((p) => {
         const periodData = qPeriods?.[p.label];
+        console.log("Questionnaire API Data outside:", periodData);
 
         if (!qPeriods?.[p.label]) {
           // Period itself not present
@@ -428,21 +429,37 @@ const Patientreport = () => {
           // Period exists but score missing
           scores[p.key] = "NA";
 
+          console.log("Questionnaire API Data inside:", periodData);
+
           // Notes
           const [first, second, third, fourth] = periodData.other_notes || [];
           const filtered = [];
-          if (first === "No") filtered.push(first);
-          if (third === "No") filtered.push(third);
+          if (first === "filledBy: Self") filtered.push(first);
+          if (third === "otherPain: No") filtered.push(third);
           notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
         } else {
           // Period exists and score exists
           const match = periodData.score.match(/:\s*(\d+)/);
           scores[p.key] = match ? match[1] : "NA";
-
+          console.log(
+            "Questionnaire API Data all side:",
+            periodData.other_notes
+          );
           const [first, second, third, fourth] = periodData.other_notes || [];
           const filtered = [];
-          if (first === "No") filtered.push(first);
-          if (third === "No") filtered.push(third);
+          if (first === "filledBy: Self") {
+            filtered.push(first);
+          } else {
+            filtered.push(first);
+            filtered.push(second);
+          }
+
+          if (third === "otherPain: No") {
+            filtered.push(third);
+          } else {
+            filtered.push(third);
+            filtered.push(fourth);
+          }
           notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
         }
       });
@@ -468,7 +485,6 @@ const Patientreport = () => {
         surgerydatright
       )
     : { periods: [], questionnaires: [] };
-  console.log(staticLeft);
 
   const questionnaireData =
     handlequestableswitch === "left" ? staticLeft : staticRight;
@@ -757,7 +773,10 @@ const Patientreport = () => {
           field: "surgery_date_left",
           value: surgerydatleft,
         };
-        await axios.patch(`${API_URL}patients/update-field/${patientbasic?.uhid}`, payloadLeft);
+        await axios.patch(
+          `${API_URL}patients/update-field/${patientbasic?.uhid}`,
+          payloadLeft
+        );
       }
 
       if (surgerydatright) {
@@ -765,7 +784,10 @@ const Patientreport = () => {
           field: "surgery_date_right",
           value: surgerydatright,
         };
-        await axios.patch(`${API_URL}patients/update-field/${patientbasic?.uhid}`, payloadRight);
+        await axios.patch(
+          `${API_URL}patients/update-field/${patientbasic?.uhid}`,
+          payloadRight
+        );
       }
 
       showWarning("Surgery Scheduled successfully");
@@ -876,7 +898,7 @@ const Patientreport = () => {
       // ✅ API call
       const response = await axios.patch(
         `${API_URL}patients/update-field/${patientbasic?.uhid}`,
-        { field:"start_end" ,value: finalopd }
+        { field: "start_end", value: finalopd }
       );
 
       // ✅ Update local state
@@ -989,10 +1011,7 @@ const Patientreport = () => {
 
     console.log("Questionnaires", payload);
     try {
-      const res = await axios.put(
-        `${API_URL}add-questionnaire`,
-        payload
-      );
+      const res = await axios.put(`${API_URL}add-questionnaire`, payload);
       showWarning("Questionnaire Assigned Successfully");
       window.location.reload();
       // handleSendremainder();
@@ -1051,7 +1070,10 @@ const Patientreport = () => {
     console.log("Payload for reset questionnaire:", payload);
 
     try {
-      const res = await axios.put(`${API_URL}questionnaires/reset-period`, payload);
+      const res = await axios.put(
+        `${API_URL}questionnaires/reset-period`,
+        payload
+      );
       showWarning("Questionnaire Reset Successful");
       window.location.reload();
     } catch (err) {
@@ -1264,12 +1286,12 @@ const Patientreport = () => {
                 <p
                   className={`${inter.className} font-semibold text-sm text-black`}
                 >
-                  Left : {patientbasic?.leftPreop || "Pre OP"}
+                  Left : {patientbasic?.statusLeft || "Pre OP"}
                 </p>
                 <p
                   className={`${inter.className} font-semibold text-sm text-black`}
                 >
-                  Right : {patientbasic?.rightPreop || "Pre OP"}
+                  Right : {patientbasic?.statusRight || "Pre OP"}
                 </p>
               </div>
               <div
@@ -1530,21 +1552,21 @@ const Patientreport = () => {
                             return (
                               <td
                                 key={period.key}
-                                className={`px-4 py-2 font-bold text-center align-middle ${
+                                className={`relative px-4 py-2 font-bold text-center align-middle ${
                                   q.notesMap[period.key] &&
                                   q.notesMap[period.key] !== "NA"
-                                    ? "cursor-pointer"
+                                    ? "group cursor-pointer"
                                     : ""
                                 }`}
                                 style={{ color }}
-                                title={
-                                  q.notesMap[period.key] &&
-                                  q.notesMap[period.key] !== "NA"
-                                    ? q.notesMap[period.key]
-                                    : undefined
-                                } // Hover text
                               >
                                 {score || "—"}
+                                {q.notesMap[period.key] &&
+                                  q.notesMap[period.key] !== "NA" && (
+                                    <div className={` ${poppins.className} uppercase  absolute bottom-0 left-1/2 -translate-x-1/2 mb-2 hidden w-full whitespace-normal rounded-lg bg-gray-500 px-3 py-2 text-sm text-white shadow-lg group-hover:block z-50`}>
+                                      {q.notesMap[period.key]}
+                                    </div>
+                                  )}
                               </td>
                             );
                           })

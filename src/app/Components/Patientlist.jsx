@@ -125,6 +125,8 @@ const Patientlist = ({
     sessionStorage.removeItem("patientreportid");
   }
 
+  const [showresetpassword, setshowresetpassword] = useState(false);
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -202,6 +204,18 @@ const Patientlist = ({
     fetchPatients();
   }, []);
 
+  useEffect(() => {
+    let adminPassword = null;
+
+    if (typeof window !== "undefined") {
+      adminPassword = sessionStorage.getItem("admin_password"); // 👈 safe access
+    }
+
+    if (adminPassword === "admin@123") {
+      setshowresetpassword(true);
+    }
+  }, []);
+
   const [activeTab, setActiveTab] = useState("Patients");
 
   const tabs = ["Patients", "Doctors", "Profile"];
@@ -248,6 +262,7 @@ const Patientlist = ({
     setSelectedDate("");
     setselectedMonth("");
     setselectedYear(today.getFullYear());
+    setSearchTerm("");
   };
 
   const handleApply = () => {
@@ -261,7 +276,7 @@ const Patientlist = ({
     if (side) {
       const surgeryDate =
         side === "left" ? patient.surgery_left : patient.surgery_right;
-      console.log("Side filter",surgeryDate);
+      console.log("Side filter", surgeryDate);
 
       // ❌ filter out if surgery date is missing or "NA"
       if (!surgeryDate || surgeryDate === "NA") return false;
@@ -278,10 +293,13 @@ const Patientlist = ({
       }
 
       if (operativePeriod === "post-op") {
+        const postOpPeriods = ["6w", "3m", "6m", "1y", "2y"];
+
         if (
-          (side === "left" && patient.period?.toLowerCase() !== "post-op") ||
+          (side === "left" &&
+            !postOpPeriods.includes(patient.period?.toLowerCase())) ||
           (side === "right" &&
-            patient.period_right?.toLowerCase() !== "post-op")
+            !postOpPeriods.includes(patient.period_right?.toLowerCase()))
         ) {
           return false;
         }
@@ -547,7 +565,7 @@ const Patientlist = ({
 
     const payload = {
       field: "mobile",
-      value: phoneInput
+      value: phoneInput,
     };
 
     try {
@@ -606,8 +624,8 @@ const Patientlist = ({
 
     const payload = {
       field: "alt_mobile",
-      value: alterphoneInput
-    }
+      value: alterphoneInput,
+    };
 
     try {
       const response = await axios.patch(
@@ -672,10 +690,10 @@ const Patientlist = ({
     setEmail(emailInput); // update locally
     setIsEditEmail(false);
 
-    const payload={
+    const payload = {
       field: "email",
-      value: emailInput
-    }
+      value: emailInput,
+    };
 
     try {
       // ✅ API call
@@ -752,7 +770,10 @@ const Patientlist = ({
     console.log("ID inputs", payload);
 
     try {
-      await axios.put(`${API_URL}patients/update-field/${profpat?.uhid}`, payload);
+      await axios.put(
+        `${API_URL}patients/update-field/${profpat?.uhid}`,
+        payload
+      );
 
       setSelectedIDs((prev) => ({ ...prev, [id]: idInputs[id] }));
       setEditingID(null); // close edit
@@ -787,14 +808,17 @@ const Patientlist = ({
     setIsEditAddress(false);
 
     // 🔥 API call or PUT only { "address": addressInput }
-    console.log(addressInput+" "+profpat?.uhid);
+    console.log(addressInput + " " + profpat?.uhid);
     const payload = {
-      field:"address",
+      field: "address",
       value: addressInput,
     };
 
     try {
-      await axios.patch(`${API_URL}patients/update-field/${profpat?.uhid}`, payload);
+      await axios.patch(
+        `${API_URL}patients/update-field/${profpat?.uhid}`,
+        payload
+      );
 
       setAddress(addressInput);
       setIsEditAddress(null); // close edit
@@ -822,15 +846,14 @@ const Patientlist = ({
     if (file && e.target.files) {
       setProfileImage(file);
       setPreviewUrl(URL.createObjectURL(file));
-      
+
       setimgupload(true);
     }
   };
 
-    const resetImage = () => {
+  const resetImage = () => {
     setProfileImage(null);
     setPreviewUrl(null);
-  
 
     // Optionally clear the file input value
     if (fileInputRef.current) {
@@ -839,7 +862,7 @@ const Patientlist = ({
     setimgupload(false);
   };
 
-    const handleUpload = async ({ uhid1, type1 }) => {
+  const handleUpload = async ({ uhid1, type1 }) => {
     if (!profileImage) {
       setError("Please select or capture an image.");
       return;
@@ -851,10 +874,7 @@ const Patientlist = ({
     formData.append("profile_image", profileImage);
 
     try {
-      const res = await axios.post(
-        `${API_URL}upload-profile-photo`,
-        formData
-      );
+      const res = await axios.post(`${API_URL}upload-profile-photo`, formData);
 
       console.log("Profile upload success:", res.data);
       showWarning("Image Upload Successfull");
@@ -866,8 +886,6 @@ const Patientlist = ({
     }
   };
 
-
-
   const isBlobUrl = previewUrl && previewUrl.startsWith("blob:");
 
   const fileInputRef = useRef(null); // To programmatically trigger the file input
@@ -878,6 +896,43 @@ const Patientlist = ({
     setAlertMessage(message);
     setShowAlert(true);
     setTimeout(() => setShowAlert(false), 4000);
+  };
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const handleResetPassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      showWarning("Please fill in both fields");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showWarning("Passwords do not match");
+      return;
+    }
+    let adminUhid = null;
+    if (typeof window !== "undefined") {
+      adminUhid = sessionStorage.getItem("admin"); // 👈 safe access
+    }
+
+    const payload = {
+      uhid: adminUhid,
+      role: "admin",
+      new_password: newPassword,
+    };
+
+    try {
+      await axios.patch(`${API_URL}auth/reset-password`, payload);
+
+      showWarning(`Password reset successfull`);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("admin_password", newPassword); // 👈 safe access
+      }
+      window.location.reload();
+    } catch (error) {
+      console.error("Error reset password:", error);
+      showWarning(`Failed to reset password for ${profpat?.uhid}`);
+    }
   };
 
   return (
@@ -1105,33 +1160,28 @@ const Patientlist = ({
                             {period === "post-op" &&
                               operativePeriod === "post-op" && (
                                 <div className="ml-6 mt-2 flex flex-wrap gap-4">
-                                  {[
-                                    "all",
-                                    "6 w",
-                                    "3 m",
-                                    "6 m",
-                                    "1 y",
-                                    "2 y",
-                                  ].map((sub) => (
-                                    <label
-                                      key={sub}
-                                      className="inline-flex items-center cursor-pointer"
-                                    >
-                                      <input
-                                        type="radio"
-                                        className="form-radio"
-                                        name="subOperativePeriod"
-                                        value={sub}
-                                        checked={subOperativePeriod === sub}
-                                        onChange={() =>
-                                          setSubOperativePeriod(sub)
-                                        }
-                                      />
-                                      <span className="ml-2 capitalize">
-                                        {sub}
-                                      </span>
-                                    </label>
-                                  ))}
+                                  {["all", "6w", "3m", "6m", "1y", "2y"].map(
+                                    (sub) => (
+                                      <label
+                                        key={sub}
+                                        className="inline-flex items-center cursor-pointer"
+                                      >
+                                        <input
+                                          type="radio"
+                                          className="form-radio"
+                                          name="subOperativePeriod"
+                                          value={sub}
+                                          checked={subOperativePeriod === sub}
+                                          onChange={() =>
+                                            setSubOperativePeriod(sub)
+                                          }
+                                        />
+                                        <span className="ml-2 capitalize">
+                                          {sub}
+                                        </span>
+                                      </label>
+                                    )
+                                  )}
                                 </div>
                               )}
                           </div>
@@ -1983,7 +2033,9 @@ const Patientlist = ({
                             </div>
                             <div>
                               {showimgupload && (
-                                <div className={` ${raleway.className} w-full flex flex-row justify-center items-center gap-8`}>
+                                <div
+                                  className={` ${raleway.className} w-full flex flex-row justify-center items-center gap-8`}
+                                >
                                   <div className="w-1/2 flex flex-row justify-start items-center">
                                     <p
                                       className="font-semibold italic text-black text-md cursor-pointer"
@@ -1995,7 +2047,6 @@ const Patientlist = ({
                                   <div className="w-1/2 flex flex-row justify-end items-center">
                                     <p
                                       className=" cursor-pointer text-center text-black text-md font-semibold "
-                                      
                                       onClick={() => {
                                         handleUpload({
                                           uhid1: profpat.uhid,
@@ -2179,6 +2230,97 @@ const Patientlist = ({
             </style>
           </div>,
           document.body // portal target
+        )}
+
+      {showresetpassword &&
+        ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 z-40 flex items-center justify-center"
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+            }}
+          >
+            <div
+              className={`
+    h-fit flex flex-col items-center justify-center mx-auto my-auto bg-white p-8 rounded-2xl
+    ${width < 950 ? "gap-4 w-full" : "w-1/2"}
+  `}
+            >
+              <h2
+                className={`${raleway.className} text-2xl font-semibold text-gray-800 mb-6`}
+              >
+                Reset Password
+              </h2>
+
+              <div
+                className={`${poppins.className} w-full flex flex-col gap-8`}
+              >
+                {/* New Password */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-base text-gray-700">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full border-b-2 border-gray-400 outline-none px-2 py-2 text-lg bg-transparent text-black"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
+
+                {/* Confirm Password */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-base text-gray-700">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border-b-2 border-gray-400 outline-none px-2 py-2 text-lg bg-transparent text-black"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleResetPassword}
+                  className="cursor-pointer mt-4 w-full bg-[#319B8F] text-white font-semibold py-2 rounded-lg hover:bg-[#26776f] transition-all"
+                >
+                  Reset Password
+                </button>
+              </div>
+            </div>
+
+            <style>
+              {`
+                .inline-scroll::-webkit-scrollbar {
+                  width: 12px;
+                }
+                .inline-scroll::-webkit-scrollbar-track {
+                  background: transparent;
+                }
+                .inline-scroll::-webkit-scrollbar-thumb {
+                  background-color: #076C40;
+                  border-radius: 8px;
+                }
+          
+                .inline-scroll {
+                  scrollbar-color: #076C40 transparent;
+                }
+              `}
+            </style>
+
+            {showAlert && (
+              <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">
+                  {alertMessage}
+                </div>
+              </div>
+            )}
+          </div>,
+          document.body // Render to body, outside constrained parent.
         )}
 
       <Patientregistration

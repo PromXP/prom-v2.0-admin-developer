@@ -50,6 +50,7 @@ import {
 import Patientlist from "../Components/Patientlist";
 import Doctorlist from "../Components/Doctorlist";
 import Patientreport from "../Components/Patientreport";
+import Resetpassword from "../Components/Resetpassword";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -125,12 +126,13 @@ const page = () => {
   const [isOpencompliance, setisOpencompliance] = useState(false);
   const [isActivationstatus, setisActivationstatus] = useState(false);
   const [isOpenpatprof, setisOpenpatprof] = useState(false);
+  const [isOpenresetpassword, setisOpenresetpassword] = useState(false);
 
   const handlenavigatereport = () => {
     setActiveTab("Report");
   };
 
-  const[adminame, setAdminname] = useState("");
+  const [adminame, setAdminname] = useState("");
 
   useEffect(() => {
     let adminUhid = null;
@@ -141,9 +143,7 @@ const page = () => {
 
     const fetchPatientReminder = async () => {
       try {
-        const res = await axios.get(
-          `${API_URL}getadminname/${adminUhid}`
-        );
+        const res = await axios.get(`${API_URL}getadminname/${adminUhid}`);
         setAdminname(res.data.admin_name);
       } catch (err) {
         console.error("Error fetching patient reminder:", err);
@@ -152,6 +152,8 @@ const page = () => {
 
     fetchPatientReminder();
   }, [adminame]);
+
+
 
   const renderSelectedComponent = () => {
     switch (activeTab) {
@@ -186,6 +188,7 @@ const page = () => {
 
       case "Report":
         return <Patientreport />;
+
 
       default:
         return null;
@@ -283,7 +286,9 @@ const page = () => {
                     <div
                       className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
                     >
-                      <p className="font-semibold">{adminame ?? "Admin Name"}</p>
+                      <p className="font-semibold">
+                        {adminame ?? "Admin Name"}
+                      </p>
                     </div>
                   </div>
                 </div>

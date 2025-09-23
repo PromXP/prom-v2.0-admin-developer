@@ -96,8 +96,10 @@ const page = () => {
         role: "admin",
       });
 
+
       if (typeof window !== "undefined") {
-        sessionStorage.setItem("admin", userUHID);
+        sessionStorage.setItem("admin", res.data.user.uhid);
+        sessionStorage.setItem("admin_password", userPassword);
       }
 
       // redirect
