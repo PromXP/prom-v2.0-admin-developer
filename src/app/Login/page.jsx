@@ -130,7 +130,7 @@ const page = () => {
 
     const handlereset = async (e) => {
     if (!resetUHID) {
-      showWarning("Please enter your UHID");
+      showWarning("Please enter your UEID");
       return;
     }
     if (!resetEmail) {
