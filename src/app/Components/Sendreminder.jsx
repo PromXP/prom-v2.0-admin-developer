@@ -189,25 +189,25 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
     }
   };
 
-const handleSendremainder = async () => {
+  const handleSendremainder = async () => {
     if (remindermessage.trim() === "") {
       setShowAlert(true);
       setTimeout(() => setShowAlert(false), 2500);
       return;
     }
 
-    console.log(
-      "Reminder data",
-      JSON.stringify({
-        // message:
-        //   "Hey User\nHope Your doing well !\n" +
-        //   message +
-        //   "\nThank you with love,\nXolabsHealth ",
-        user_name: patient?.Patient?.name,
-        message: remindermessage,
-        phone_number: "+91" + phone,
-      })
-    );
+    // console.log(
+    //   "Reminder data",
+    //   JSON.stringify({
+    //     // message:
+    //     //   "Hey User\nHope Your doing well !\n" +
+    //     //   message +
+    //     //   "\nThank you with love,\nXolabsHealth ",
+    //     user_name: patient?.Patient?.name,
+    //     message: remindermessage,
+    //     phone_number: "+91" + phone,
+    //   })
+    // );
     // return;
 
     // sendRealTimeMessage();
@@ -233,7 +233,7 @@ const handleSendremainder = async () => {
         data = { error: "Invalid JSON response", raw: text };
       }
 
-      console.log("Email API response:", data);
+      // console.log("Email API response:", data);
 
       if (res.ok) {
         // alert("Email sent (check console for details)");
@@ -249,8 +249,15 @@ const handleSendremainder = async () => {
     }
   };
 
+  const templates = [
+    "This is a reminder to complete your pending health questionnaire. Please fill it in at your earliest convenience to help us provide better care.",
+    "Your medical questionnaire is still pending. Kindly complete it before your upcoming appointment.",
+    "Reminder: Your health questionnaire is due. Completing it on time ensures that your doctor has the necessary information for your care.",
+    "Your post-surgery questionnaire is pending. Please complete it today so we can track your recovery progress.",
+    "Please take a few minutes to complete your assigned questionnaire. This helps us prepare for your consultation and provide the best care.",
+  ];
 
-const sendwhatsapp = async () => {
+  const sendwhatsapp = async () => {
     const res = await fetch(API_URL + "send-whatsapp/", {
       method: "POST",
       headers: {
@@ -402,12 +409,21 @@ const sendwhatsapp = async () => {
                   } ${width < 700 ? "flex-col" : "flex-col"}`}
                 >
                   {!switchcont ? (
-                    <textarea
-                      rows={10}
-                      value={remindermessage}
-                      onChange={(e) => setremindermessage(e.target.value)}
-                      className="px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black"
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {templates.map((template, index) => (
+                        <div
+                          key={index}
+                          onClick={() => setremindermessage(template)}
+                          className={`border rounded-md px-4 py-3 text-sm text-black cursor-pointer hover:bg-blue-100 ${
+                            remindermessage === template
+                              ? "bg-blue-200 border-blue-500"
+                              : "bg-gray-100"
+                          }`}
+                        >
+                          {template}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <textarea
                       rows={10}
@@ -582,8 +598,6 @@ const sendwhatsapp = async () => {
                   )}
                 </div>
               </div>
-
-              
             </div>
             {showAlert && (
               <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">

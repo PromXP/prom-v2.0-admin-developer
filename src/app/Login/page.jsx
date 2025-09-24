@@ -128,6 +128,46 @@ const page = () => {
     }
   };
 
+    const handlereset = async (e) => {
+    if (!resetUHID) {
+      showWarning("Please enter your UHID");
+      return;
+    }
+    if (!resetEmail) {
+      showWarning("Please enter your registered email");
+      return;
+    }
+    setloginlock(true);
+
+    try {
+      const res = await axios.post(`${API_URL}request_password_reset?uhid=${resetUHID}&email=${resetEmail}`);
+
+
+      showWarning("Password reset link sent to you registered email");
+      setloginlock(false);
+      setuserUHID("");
+      setuserPassword("");
+    } catch (err) {
+      setloginlock(false);
+      setuserUHID("");
+      setuserPassword("");
+      if (err.response) {
+        let errorMsg = err.response.data?.detail || "Login failed";
+
+        // If detail is an object (like FastAPI validation error), stringify it
+        if (typeof errorMsg === "object") {
+          errorMsg = JSON.stringify(errorMsg);
+        }
+
+        showWarning(errorMsg);
+      } else if (err.request) {
+        showWarning("No response from server");
+      } else {
+        showWarning("Network error");
+      }
+    }
+  };
+
   return (
     <div className="relative bg-[#CFDADE] min-h-screen w-full">
       {/* Top-left MainBg */}
@@ -237,7 +277,7 @@ const page = () => {
                         onClick={() => setShowForgotPassword(true)}
                         className={`${inter.className} text-sm text-gray-500 hover:underline cursor-pointer`}
                       >
-                        Recover Password ?
+                        Reset Password ?
                       </a>
                     </div>
 
@@ -293,6 +333,7 @@ const page = () => {
                         className={`${raleway.className} ${
                           width < 600 ? "w-fit px-4" : "w-1/2"
                         } text-lg cursor-pointer bg-black text-white rounded-md py-1 font-semibold hover:bg-gray-800 transition`}
+                        onClick={handlereset}
                       >
                         Send Reset Link
                       </button>

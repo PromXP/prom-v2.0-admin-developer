@@ -215,9 +215,9 @@ const Patientreport = () => {
 
         setpatientbasic(pickedData);
 
-        console.log("Fetched patient reminder data:", pickedData);
+        // console.log("Fetched patient reminder data:", pickedData);
       } catch (err) {
-        console.error("Error fetching patient reminder:", err);
+        // console.error("Error fetching patient reminder:", err);
       }
     };
 
@@ -272,7 +272,7 @@ const Patientreport = () => {
           uhid: doc.uhid,
         }));
         setDoctor(doctorPatients);
-        console.log("✅ Fetched doctors:", doctorPatients);
+        // console.log("✅ Fetched doctors:", doctorPatients);
       } catch (err) {
         // console.error("❌ Error fetching patients:", err);
         if (err.response) {
@@ -312,7 +312,7 @@ const Patientreport = () => {
         : { field: "right_doctor", value: selectedDoctor }),
     };
 
-    console.log("Payload for doctor assignment:", payload);
+    // console.log("Payload for doctor assignment:", payload);
 
     try {
       const res = await axios.patch(
@@ -342,7 +342,7 @@ const Patientreport = () => {
         : { field: "right_doctor", value: "NA" }),
     };
 
-    console.log("Payload for doctor assignment:", payload);
+    // console.log("Payload for doctor assignment:", payload);
 
     try {
       const res = await axios.patch(
@@ -419,7 +419,7 @@ const Patientreport = () => {
 
       periodOffsets.forEach((p) => {
         const periodData = qPeriods?.[p.label];
-        console.log("Questionnaire API Data outside:", periodData);
+        // console.log("Questionnaire API Data outside:", periodData);
 
         if (!qPeriods?.[p.label]) {
           // Period itself not present
@@ -429,7 +429,7 @@ const Patientreport = () => {
           // Period exists but score missing
           scores[p.key] = "NA";
 
-          console.log("Questionnaire API Data inside:", periodData);
+          // console.log("Questionnaire API Data inside:", periodData);
 
           // Notes
           const [first, second, third, fourth] = periodData.other_notes || [];
@@ -441,10 +441,10 @@ const Patientreport = () => {
           // Period exists and score exists
           const match = periodData.score.match(/:\s*(\d+)/);
           scores[p.key] = match ? match[1] : "NA";
-          console.log(
-            "Questionnaire API Data all side:",
-            periodData.other_notes
-          );
+          // console.log(
+          //   "Questionnaire API Data all side:",
+          //   periodData.other_notes
+          // );
           const [first, second, third, fourth] = periodData.other_notes || [];
           const filtered = [];
           if (first === "filledBy: Self") {
@@ -880,8 +880,8 @@ const Patientreport = () => {
         .toString()
         .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 
-      console.log("ISO full:", isoDate);
-      console.log("ISO date only:", isoDateOnly);
+      // console.log("ISO full:", isoDate);
+      // console.log("ISO date only:", isoDateOnly);
 
       setopd(isoDateOnly); // for backend (UTC safe)
       setfinalopd(isoDate); // if you also need just the date
@@ -1009,12 +1009,12 @@ const Patientreport = () => {
       });
     });
 
-    console.log("Questionnaires", payload);
+    // console.log("Questionnaires", payload);
     try {
       const res = await axios.put(`${API_URL}add-questionnaire`, payload);
       showWarning("Questionnaire Assigned Successfully");
       window.location.reload();
-      // handleSendremainder();
+      handleSendremainder();
     } catch (error) {
       if (axios.isAxiosError(error)) {
         showWarning(error.response?.data || error.message);
@@ -1067,7 +1067,7 @@ const Patientreport = () => {
       period: resetperiod,
     };
 
-    console.log("Payload for reset questionnaire:", payload);
+    // console.log("Payload for reset questionnaire:", payload);
 
     try {
       const res = await axios.put(
@@ -1128,7 +1128,7 @@ const Patientreport = () => {
       period: resetperiod,
     };
 
-    console.log("Payload for reset questionnaire:", payload);
+    // console.log("Payload for reset questionnaire:", payload);
 
     try {
       const res = await axios.delete(`${API_URL}questionnaires/delete-period`, {
@@ -1194,15 +1194,15 @@ const Patientreport = () => {
   };
 
   const sendwhatsapp = async () => {
-    console.log(
-      "Whatsapp contact",
-      JSON.stringify({
-        user_name: patientbasic?.name,
-        phone_number: "+91" + patientbasic?.phone,
-        message: "",
-        flag: 1,
-      })
-    );
+    // console.log(
+    //   "Whatsapp contact",
+    //   JSON.stringify({
+    //     user_name: patientbasic?.name,
+    //     phone_number: "+91" + patientbasic?.phone,
+    //     message: "",
+    //     flag: 1,
+    //   })
+    // );
 
     // return;
 
