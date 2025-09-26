@@ -89,7 +89,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
 
   const handleDateChange = (e) => {
     const dateValue = e.target.value;
-    console.log("Raw input value:", dateValue);
+    // console.log("Raw input value:", dateValue);
 
     if (dateValue) {
       const selected = new Date(dateValue);
@@ -99,8 +99,8 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       today.setHours(0, 0, 0, 0);
       selected.setHours(0, 0, 0, 0);
 
-      console.log("Selected Date:", selected.toDateString());
-      console.log("Today's Date:", today.toDateString());
+      // console.log("Selected Date:", selected.toDateString());
+      // console.log("Today's Date:", today.toDateString());
 
       if (selected >= today) {
         console.warn("Invalid birth date selected.");
@@ -115,7 +115,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         year: "numeric",
       });
 
-      console.log("Formatted Date:", formattedDate);
+      // console.log("Formatted Date:", formattedDate);
       setSelectedDate(formattedDate);
     }
   };
@@ -514,17 +514,22 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       },
     };
 
-    console.log("Submitting payload:", payload);
+    // console.log("Submitting payload:", payload);
     // return
 
     try {
       const res = await axios.post(`${API_URL}patients/full`, payload);
-      console.log("✅ Patient created:", res.data);
+      // console.log("✅ Patient created:", res.data);
       showWarning("Patient created successfully!");
+      if(profileImage){
       handleUpload();
+      }
     } catch (error) {
-      console.error("❌ Error creating patient:", error);
+      // console.error("❌ Error creating patient:", error);
       showWarning("Failed to create patient" + error);
+    }
+    finally{
+      window.location.reload();
     }
   };
 
@@ -550,13 +555,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         formData
       );
 
-      console.log("Profile upload success:", res.data);
+      // console.log("Profile upload success:", res.data);
       showWarning("Image uploaded successfully.");
-      window.location.reload();
+      
     } catch (err) {
-      console.error("Profile upload failed:", err);
+      // console.error("Profile upload failed:", err);
       showWarning("Upload failed.");
-    }
+    } 
   };
 
   if (!isOpenacc || !mounted) return null;

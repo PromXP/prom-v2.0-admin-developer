@@ -257,6 +257,7 @@ const Patientreport = () => {
   // ✅ clear all
   const clearAll = () => {
     setSelected([]);
+    setSearchTermquestionnaire("");
   };
 
   const [doctor, setDoctor] = useState([]);
@@ -364,6 +365,8 @@ const Patientreport = () => {
 
   const [surgerydatleft, setsurgeryDateleft] = useState("");
   const [surgerydatright, setsurgeryDateright] = useState("");
+  const [surgerydatleftorig, setsurgeryDateleftorig] = useState("");
+  const [surgerydatrightorig, setsurgeryDaterightorig] = useState("");
 
   // ✅ Load values from patientbasic when it changes
 
@@ -473,16 +476,16 @@ const Patientreport = () => {
   };
 
   // Usage
-  const staticLeft = surgerydatleft
+  const staticLeft = surgerydatleftorig
     ? transformApiDataToStaticWithDates(
         patientbasic?.questionnaire_left,
-        surgerydatleft
+        surgerydatleftorig
       )
     : { periods: [], questionnaires: [] };
-  const staticRight = surgerydatright
+  const staticRight = surgerydatrightorig
     ? transformApiDataToStaticWithDates(
         patientbasic?.questionnaire_right,
-        surgerydatright
+        surgerydatrightorig
       )
     : { periods: [], questionnaires: [] };
 
@@ -612,9 +615,12 @@ const Patientreport = () => {
   };
 
   const getDoctorNameByUhid = (uhid) => {
+    if(uhid === "Doctor") return "NA";
     if (!uhid) return "Doctor";
     const doc = doctor.find((d) => d.uhid === uhid);
+    
     if (!doc) return "Doctor";
+    console.log("Doctor name",doc);
     return doc.name.startsWith("Dr.") ? doc.name : `Dr. ${doc.name}`;
   };
 
@@ -914,6 +920,8 @@ const Patientreport = () => {
 
   useEffect(() => {
     if (patientbasic) {
+      setsurgeryDateleftorig(patientbasic.surgery_left || "");
+      setsurgeryDaterightorig(patientbasic.surgery_right || "");
       setsurgeryDateleft(patientbasic.surgery_left || "");
       setsurgeryDateright(patientbasic.surgery_right || "");
       const opdStart = patientbasic?.opd?.[0]?.start;
@@ -1013,7 +1021,7 @@ const Patientreport = () => {
     try {
       const res = await axios.put(`${API_URL}add-questionnaire`, payload);
       showWarning("Questionnaire Assigned Successfully");
-      window.location.reload();
+      
       handleSendremainder();
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -1231,6 +1239,31 @@ const Patientreport = () => {
 
   const [resetconfirm, setresetconfirm] = useState(false);
   const [deleteconfirm, setdeleteconfirm] = useState(false);
+
+  const messages = [
+    "Fetching questionnaire data...",
+    "Almost ready! Finalizing overview...",
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % messages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const messages1 = ["Loading.", "Loading..", "Loading..."];
+
+  const [index1, setIndex1] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex1((prev) => (prev + 1) % messages1.length);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div
@@ -1465,123 +1498,157 @@ const Patientreport = () => {
             </div>
             <div className="bg-white rounded-2xl px-2 py-1 flex flex-col gap-4 shadow-lg h-full w-full">
               <div className="w-full overflow-x-auto h-full overflow-y-auto">
-                <table className="min-w-full table-fixed border-separate border-spacing-y-1">
-                  <thead className="text-[#475467] text-[16px] font-medium text-center">
-                    <tr className="rounded-2xl">
-                      <th
-                        className={`${inter.className} font-bold text-white text-sm px-2 py-1 bg-gray-900 rounded-tl-2xl text-center whitespace-nowrap w-3/5`}
-                      >
-                        <div className="flex flex-row justify-center items-center gap-4">
-                          <p>Questionnaire</p>
-                        </div>
-                      </th>
-                      {questionnaireData.periods.map((period, idx) => (
+                {!questionnaireData ||
+                !questionnaireData.questionnaires ||
+                !questionnaireData.questionnaires.length > 0 ? (
+                  <div className="flex space-x-2 py-2 w-full justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    <span
+                      className={`${poppins.className} text-black font-semibold`}
+                    >
+                      {messages[index]}
+                    </span>
+                  </div>
+                ) : (
+                  <table className="min-w-full table-fixed border-separate border-spacing-y-1">
+                    <thead className="text-[#475467] text-[16px] font-medium text-center">
+                      <tr className="rounded-2xl">
                         <th
-                          key={period.key}
-                          className={`px-4 py-3  bg-gray-900 text-center whitespace-nowrap ${
-                            idx === questionnaireData.periods.length - 1
-                              ? "rounded-tr-2xl"
-                              : ""
-                          }`}
+                          className={`${inter.className} font-bold text-white text-sm px-2 py-1 bg-gray-900 rounded-tl-2xl text-center whitespace-nowrap w-3/5`}
                         >
-                          <div className="flex flex-row items-center gap-1 w-full">
-                            <div className="w-fit">
-                              <span
-                                className={`${inter.className} font-bold text-white`}
-                              >
-                                <Image
-                                  src={Delete}
-                                  alt="reset"
-                                  className="w-8 h-5 max-w-[22px] min-h-[20px] font-bold cursor-pointer"
-                                  onClick={() =>
-                                    handleBinClick({ period: period.label })
-                                  }
-                                />
-                              </span>
-                            </div>
-                            <div className={`w-fit flex flex-col`}>
-                              <span
-                                className={`${inter.className} text-[15px]  text-white font-bold`}
-                              >
-                                {period.label}
-                              </span>
-                              <span
-                                className={`${inter.className} text-[10px]  text-white font-semibold`}
-                              >
-                                {period.date}
-                              </span>
-                            </div>
-                            <div className={`w-fit`}>
-                              <span className="text-[#475467]">
-                                <Image
-                                  src={Reset}
-                                  alt="reset"
-                                  className="w-8 h-5 max-w-[22px] min-h-[20px] font-bold cursor-pointer"
-                                  onClick={() =>
-                                    handleMinusClick({ period: period.label })
-                                  }
-                                />
-                              </span>
-                            </div>
+                          <div className="flex flex-row justify-center items-center gap-4">
+                            <p>Questionnaire</p>
+                          </div>
+                        </th>
+                        {questionnaireData.periods.map((period, idx) => (
+                          <th
+                            key={period.key}
+                            className={`px-4 py-3  bg-gray-900 text-center whitespace-nowrap ${
+                              idx === questionnaireData.periods.length - 1
+                                ? "rounded-tr-2xl"
+                                : ""
+                            }`}
+                          >
+                            <div className="flex flex-row items-center gap-1 w-full">
+                              <div className="w-fit">
+                                <span
+                                  className={`${inter.className} font-bold text-white`}
+                                >
+                                  <Image
+                                    src={Delete}
+                                    alt="reset"
+                                    className="w-8 h-5 max-w-[22px] min-h-[20px] font-bold cursor-pointer"
+                                    onClick={() =>
+                                      handleBinClick({ period: period.label })
+                                    }
+                                  />
+                                </span>
+                              </div>
+                              <div className={`w-fit flex flex-col`}>
+                                <span
+                                  className={`${inter.className} text-[15px]  text-white font-bold`}
+                                >
+                                  {period.label}
+                                </span>
+                                <span
+                                  className={`${inter.className} text-[10px]  text-white font-semibold`}
+                                >
+                                  {period.date}
+                                </span>
+                              </div>
+                              <div className={`w-fit`}>
+                                <span className="text-[#475467]">
+                                  <Image
+                                    src={Reset}
+                                    alt="reset"
+                                    className="w-8 h-5 max-w-[22px] min-h-[20px] font-bold cursor-pointer"
+                                    onClick={() =>
+                                      handleMinusClick({ period: period.label })
+                                    }
+                                  />
+                                </span>
+                              </div>
 
-                            {/* <div
+                              {/* <div
                                 className={`${inter.className} font-bold text-white text-sm flex items-center justify-between gap-2 w-full`}
                               >
                                 {" "}
                               </div> */}
-                          </div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody className="bg-white text-[13px]">
-                    {questionnaireData.questionnaires.map((q, index) => (
-                      <tr key={index} className="">
-                        <td
-                          className={`${raleway.className} font-semibold px-4 py-2 text-[#1F2937]`}
-                        >
-                          {q.name}
-                        </td>
-
-                        {Object.keys(q.scores || {}).length > 0 ? (
-                          questionnaireData.periods.map((period) => {
-                            const score = q.scores?.[period.key];
-                            const color = getTextColor(Number(score));
-
-                            return (
-                              <td
-                                key={period.key}
-                                className={`relative px-4 py-2 font-bold text-center align-middle ${
-                                  q.notesMap[period.key] &&
-                                  q.notesMap[period.key] !== "NA"
-                                    ? "group cursor-pointer"
-                                    : ""
-                                }`}
-                                style={{ color }}
-                              >
-                                {score || "—"}
-                                {q.notesMap[period.key] &&
-                                  q.notesMap[period.key] !== "NA" && (
-                                    <div className={` ${poppins.className} uppercase  absolute bottom-0 left-1/2 -translate-x-1/2 mb-2 hidden w-full whitespace-normal rounded-lg bg-gray-500 px-3 py-2 text-sm text-white shadow-lg group-hover:block z-50`}>
-                                      {q.notesMap[period.key]}
-                                    </div>
-                                  )}
-                              </td>
-                            );
-                          })
-                        ) : (
-                          <td
-                            colSpan={6}
-                            className={`${inter.className} font-bold text-[13px] px-4 py-4 text-center text-[#3b3b3b]`}
-                          >
-                            No questionnaires assigned
-                          </td>
-                        )}
+                            </div>
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+
+                    <tbody className="bg-white text-[13px]">
+                      {questionnaireData.questionnaires.map((q, index) => (
+                        <tr key={index} className="">
+                          <td
+                            className={`${raleway.className} font-semibold px-4 py-2 text-[#1F2937]`}
+                          >
+                            {q.name}
+                          </td>
+
+                          {Object.keys(q.scores || {}).length > 0 ? (
+                            questionnaireData.periods.map((period) => {
+                              const score = q.scores?.[period.key];
+                              const color = getTextColor(Number(score));
+
+                              return (
+                                <td
+                                  key={period.key}
+                                  className={`relative px-4 py-2 font-bold text-center align-middle ${
+                                    q.notesMap[period.key] &&
+                                    q.notesMap[period.key] !== "NA"
+                                      ? "group cursor-pointer"
+                                      : ""
+                                  }`}
+                                  style={{ color }}
+                                >
+                                  {score || "—"}
+                                  {q.notesMap[period.key] &&
+                                    q.notesMap[period.key] !== "NA" && (
+                                      <div
+                                        className={` ${poppins.className} uppercase  absolute bottom-0 left-1/2 -translate-x-1/2 mb-2 hidden w-full whitespace-normal rounded-lg bg-gray-500 px-3 py-2 text-sm text-white shadow-lg group-hover:block z-50`}
+                                      >
+                                        {q.notesMap[period.key]}
+                                      </div>
+                                    )}
+                                </td>
+                              );
+                            })
+                          ) : (
+                            <td
+                              colSpan={6}
+                              className={`${inter.className} font-bold text-[13px] px-4 py-4 text-center text-[#3b3b3b]`}
+                            >
+                              No questionnaires assigned
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>
@@ -1947,9 +2014,39 @@ const Patientreport = () => {
                         <p
                           className={`${inter.className} text-xl text-white font-bold`}
                         >
-                          {docside === "LEFT"
-                            ? getDoctorNameByUhid(patientbasic.left_doctor)
-                            : getDoctorNameByUhid(patientbasic.right_doctor)}
+                          {docside === "LEFT" ? (
+                            getDoctorNameByUhid(patientbasic.left_doctor) ===
+                            "Doctor" ? (
+                              <div className="flex space-x-2 py-2 w-full justify-center">
+                                <span
+                                  className={`${poppins.className} text-white font-semibold`}
+                                >
+                                  {messages1[index1]}
+                                </span>
+                              </div>
+                            ) : (
+                              <p
+                                className={`${inter.className} text-xl text-white font-bold`}
+                              >
+                                {getDoctorNameByUhid(patientbasic.left_doctor)}
+                              </p>
+                            )
+                          ) : getDoctorNameByUhid(patientbasic.right_doctor) ===
+                            "Doctor" ? (
+                            <div className="flex space-x-2 py-2 w-full justify-center">
+                              <span
+                                className={`${poppins.className} text-white font-semibold`}
+                              >
+                                {messages1[index1]}
+                              </span>
+                            </div>
+                          ) : (
+                            <p
+                              className={`${inter.className} text-xl text-white font-bold`}
+                            >
+                              {getDoctorNameByUhid(patientbasic.right_doctor)}
+                            </p>
+                          )}
                         </p>
                         <p
                           className={`${inter.className} text-[8px] text-white font-semibold`}

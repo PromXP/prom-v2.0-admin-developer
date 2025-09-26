@@ -96,7 +96,6 @@ const page = () => {
         role: "admin",
       });
 
-
       if (typeof window !== "undefined") {
         sessionStorage.setItem("admin", res.data.user.uhid);
         sessionStorage.setItem("admin_password", userPassword);
@@ -128,7 +127,7 @@ const page = () => {
     }
   };
 
-    const handlereset = async (e) => {
+  const handlereset = async (e) => {
     if (!resetUHID) {
       showWarning("Please enter your UEID");
       return;
@@ -140,8 +139,9 @@ const page = () => {
     setloginlock(true);
 
     try {
-      const res = await axios.post(`${API_URL}request_password_reset?uhid=${resetUHID}&email=${resetEmail}`);
-
+      const res = await axios.post(
+        `${API_URL}request_password_reset?uhid=${resetUHID}&email=${resetEmail}`
+      );
 
       showWarning("Password reset link sent to you registered email");
       setloginlock(false);
@@ -284,9 +284,36 @@ const page = () => {
                     <button
                       type="submit"
                       disabled={loginlock}
-                      className={`${raleway.className} w-2/5 text-lg cursor-pointer bg-black text-white rounded-md py-1 font-semibold hover:bg-gray-800 transition`}
+                      className={`${raleway.className} w-2/5 text-lg cursor-pointer bg-black text-white rounded-md py-1 font-semibold hover:bg-gray-800 transition flex items-center justify-center`}
                     >
-                      Login
+                      {loginlock ? (
+                        // Spinner + text
+                        <div className="flex items-center space-x-2">
+                          <svg
+                            className="animate-spin h-5 w-5 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                            />
+                          </svg>
+                          <span>Logging in...</span>
+                        </div>
+                      ) : (
+                        "Login"
+                      )}
                     </button>
                   </form>
                 </div>

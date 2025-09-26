@@ -290,16 +290,27 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
       profile_picture_url: "NA",
       doctor_council_number: medicalcouncilnumber,
     };
-    console.log("Submitting payload:", payload);
+    // console.log("Submitting payload:", payload);
     try {
       const res = await axios.post(`${API_URL}doctor/fhir`, payload);
-      console.log("✅ Doctor created:", res.data);
-      showWarning("Doctor created successfully!");
+
+      // console.log("✅ Doctor created:", res.data);
+      if(res.data.status === "failed"){
+        showWarning("Doctor already found!");
+        
+      }
+      else{
+        showWarning("Doctor created successfully!");
+        window.location.reload();
+      }
+      
     } catch (err) {
       console.error("❌ Error creating doctor:", err);
       showWarning("Failed to create doctor.");
     }
+   
   };
+
 
   const showWarning = (message) => {
     setAlertMessage(message);

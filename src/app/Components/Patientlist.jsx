@@ -187,7 +187,7 @@ const Patientlist = ({
               : Womanavatar,
         }));
 
-        console.log("🔄 Mapped Patients:", mapped);
+        // console.log("🔄 Mapped Patients:", mapped);
         setPatients(mapped);
       } catch (err) {
         // console.error("❌ Error fetching patients:", err);
@@ -276,7 +276,7 @@ const Patientlist = ({
     if (side) {
       const surgeryDate =
         side === "left" ? patient.surgery_left : patient.surgery_right;
-      console.log("Side filter", surgeryDate);
+      // console.log("Side filter", surgeryDate);
 
       // ❌ filter out if surgery date is missing or "NA"
       if (!surgeryDate || surgeryDate === "NA") return false;
@@ -368,7 +368,7 @@ const Patientlist = ({
       const month = Number(selectedMonth); // 1 → January
       const year = Number(selectedYear);
 
-      console.log("Right questionnaire", qData);
+      // console.log("Right questionnaire", qData);
 
       const hasMatching = Object.values(qData || {}).some(
         (q) =>
@@ -411,9 +411,6 @@ const Patientlist = ({
     return new Date(Math.min(...deadlines));
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
-
   const searchedPatients = patients.filter((patient) => {
     if (!searchTerm) return true; // no search applied
     const term = searchTerm.toLowerCase();
@@ -438,32 +435,48 @@ const Patientlist = ({
   });
 
   // Use searchedPatients if searchTerm exists, otherwise filteredPatients
-  const displayedPatients = searchTerm ? searchedPatients : sortedPatients;
+  const displayedPatients = searchTerm
+  ? sortedPatients.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  : sortedPatients;
 
-  const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
 
-  // Slice the data
-  const paginatedPatients = displayedPatients.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(50); // initial default
+
+  // Whenever data or rowsPerPage change, reset page
+  // Reset current page when searchTerm, filteredPatients, or rowsPerPage changes
+// Reset current page when searchTerm or filteredPatients length changes
+useEffect(() => {
+  setCurrentPage(1);
+}, [searchTerm, filteredPatients.length]);
+
+// Optional: adjust rowsPerPage if it exceeds array length
+useEffect(() => {
+  if (rowsPerPage > displayedPatients.length) {
+    setRowsPerPage(Math.max(5, displayedPatients.length));
+  }
+}, [displayedPatients.length]);
+
+
+
+  const totalPages = Math.max(1, Math.ceil(displayedPatients.length / rowsPerPage));
+
+
+
+const paginatedPatients = displayedPatients.slice(
+  (currentPage - 1) * rowsPerPage,
+  currentPage * rowsPerPage
+);
 
   const generatePageOptions = (total) => {
-    const options = [];
-    const commonSteps = [5, 10, 25, 50];
-
-    for (let step of commonSteps) {
-      if (step < total) {
-        options.push(step);
-      }
-    }
-
-    if (!options.includes(total)) {
-      options.push(total); // Add total as last option
-    }
-
+    const options = [5, 10, 25, 50].filter((n) => n < total);
+    if (!options.includes(total)) options.push(total);
     return options;
   };
+
   const [selectedRole, setSelectedRole] = useState("patient");
 
   const data = [
@@ -767,7 +780,7 @@ const Patientlist = ({
       value: idInputs[id],
     };
 
-    console.log("ID inputs", payload);
+    // console.log("ID inputs", payload);
 
     try {
       await axios.put(
@@ -808,7 +821,7 @@ const Patientlist = ({
     setIsEditAddress(false);
 
     // 🔥 API call or PUT only { "address": addressInput }
-    console.log(addressInput + " " + profpat?.uhid);
+    // console.log(addressInput + " " + profpat?.uhid);
     const payload = {
       field: "address",
       value: addressInput,
@@ -876,7 +889,7 @@ const Patientlist = ({
     try {
       const res = await axios.post(`${API_URL}upload-profile-photo`, formData);
 
-      console.log("Profile upload success:", res.data);
+      // console.log("Profile upload success:", res.data);
       showWarning("Image Upload Successfull");
       setimgupload(false);
     } catch (err) {
@@ -935,6 +948,22 @@ const Patientlist = ({
     }
   };
 
+  const messages = [
+    "Fetching patients from the database...",
+    "Almost there, preparing data...",
+    "Optimizing results...",
+    "Hang tight! Just a moment...",
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % messages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
       <div
@@ -948,7 +977,7 @@ const Patientlist = ({
           }`}
         >
           <div
-            className={`w-full h-full  flex  ${
+            className={`w-full h-full  flex ${
               width >= 1000
                 ? "border-gray-300 border-r-2 flex-col justify-end"
                 : width >= 400 && width < 1000
@@ -1333,12 +1362,9 @@ const Patientlist = ({
                 <select
                   className="bg-transparent outline-none text-gray-700 font-semibold cursor-pointer"
                   value={rowsPerPage}
-                  onChange={(e) => {
-                    setRowsPerPage(Number(e.target.value));
-                    setCurrentPage(1); // Reset to first page
-                  }}
+                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
                 >
-                  {generatePageOptions(filteredPatients.length).map((count) => (
+                  {generatePageOptions(displayedPatients.length).map((count) => (
                     <option key={count} value={count}>
                       {count}
                     </option>
@@ -1372,14 +1398,14 @@ const Patientlist = ({
 
                   {/* Page Info */}
                   <span className="text-gray-700 text-[13px]">
-                    <span className="text-black">{currentPage}</span>/
+                    <span className="text-black">{currentPage}</span> /{" "}
                     <span>{totalPages}</span>
                   </span>
 
                   {/* Next */}
                   <button
                     className="w-6 h-6 flex items-center justify-center rounded-md bg-white shadow border cursor-pointer"
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages || totalPages === 0}
                     onClick={() =>
                       setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                     }
@@ -1406,7 +1432,35 @@ const Patientlist = ({
                   width >= 1000 ? "overflow-y-auto" : ""
                 }`}
               >
-                {paginatedPatients.length !== 0 ? (
+                {loading ? (
+                  <div className="flex space-x-2 w-full justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    <span
+                      className={`${poppins.className} text-black font-semibold`}
+                    >
+                      {messages[index]}
+                    </span>
+                  </div>
+                ) : paginatedPatients.length !== 0 ? (
                   paginatedPatients.map((patient, index) => (
                     <div
                       key={index}

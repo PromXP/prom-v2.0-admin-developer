@@ -107,7 +107,7 @@ const Patientcompliance = ({
           KSS: "Knee Society Score (KSS)", // <-- add if needed
         };
 
-        const transformData = (data,side) => {
+        const transformData = (data, side) => {
           let result = [];
           let idCounter = 1;
 
@@ -119,7 +119,7 @@ const Patientcompliance = ({
                 period: period.replace("_", " "), // e.g. Pre_Op → Pre Op
                 deadline: details.deadline || "",
                 completed: details.completed ? 1 : 0,
-                side: side
+                side: side,
               });
             }
           }
@@ -129,15 +129,16 @@ const Patientcompliance = ({
 
         setPatientName(res.data.patient.Patient.name);
         setQues([
-          ...transformData(res.data.patient.Medical_Left,"left"),
-          ...transformData(res.data.patient.Medical_Right,"right"),
+          ...transformData(res.data.patient.Medical_Left, "left"),
+          ...transformData(res.data.patient.Medical_Right, "right"),
         ]);
 
-        console.log("Fetched patient data:", {
-          transformData: transformData(res.data.patient.Medical_Left),
-        });
+        // console.log("Fetched patient data:", {
+        //   transformData: transformData(res.data.patient.Medical_Left),
+        // });
       } catch (err) {
-        console.error("Error fetching patient reminder:", err);
+        // console.error("Error fetching patient reminder:", err);
+        showWarning(err);
       }
     };
 
@@ -162,25 +163,42 @@ const Patientcompliance = ({
   const [tempDeadlines, setTempDeadlines] = useState({}); // {index: deadline}
 
   const updateQuestionnaire = async (data) => {
-    console.log("Updating questionnaire:", data);
-  try {
-    const response = await axios.put(`${API_URL}questionnaires/reset-single`, data);
+    // console.log("Updating questionnaire:", data);
+    try {
+      const response = await axios.put(
+        `${API_URL}questionnaires/reset-single`,
+        data
+      );
 
-    console.log("Questionnaire updated:", response.data);
-    showWarning("Questionnaire Reset successful!");
-  } catch (error) {
-    if (error.response) {
-      // Server returned a response
-      showWarning("Failed to update questionnaire");
-    } else if (error.request) {
-      // Request made but no response
-      showWarning("No response from server. Please try again.");
-    } else {
-      // Other errors
-      showWarning("Error: " + error.message);
+      // console.log("Questionnaire updated:", response.data);
+      showWarning("Questionnaire Reset successful!");
+    } catch (error) {
+      if (error.response) {
+        // Server returned a response
+        showWarning("Failed to update questionnaire");
+      } else if (error.request) {
+        // Request made but no response
+        showWarning("No response from server. Please try again.");
+      } else {
+        // Other errors
+        showWarning("Error: " + error.message);
+      }
     }
-  }
-};
+  };
+
+  const messages = [
+    "Fetching questionnaire compliance data...",
+    "Almost ready! Finalizing compliance overview...",
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % messages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!isOpencompliance || !mounted) return null;
 
@@ -218,7 +236,7 @@ const Patientcompliance = ({
                   <p
                     className={`${inter.className} text-xl font-bold text-black`}
                   >
-                    {patientname}'s Compliance
+                    {patientname || "Patient"}'s Compliance
                   </p>
                   <div
                     className={`flex flex-row gap-4 items-center justify-center`}
@@ -247,6 +265,7 @@ const Patientcompliance = ({
                       alt="Close"
                       className={`w-fit h-6 cursor-pointer`}
                       onClick={() => {
+                        setQues([]);
                         setisOpencompliance();
                         setexpand(false);
                       }}
@@ -282,111 +301,142 @@ const Patientcompliance = ({
                       </thead>
 
                       <tbody>
-                        {ques.map((item, index) => {
-                          const isEditing = editingRow === index;
-                          const tempDeadline =
-                            tempDeadlines[index] ?? item.deadline;
-
-                          return (
-                            <tr
-                              key={index}
-                              className={`${raleway.className} font-semibold`}
+                        {ques.length === 0 ? (
+                          <div className="flex py-2 items-center space-x-2 w-full justify-center">
+                            <svg
+                              className="animate-spin h-5 w-5 text-black"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
                             >
-                              <td className="text-start py-2 text-sm text-black w-4/9">
-                                {item.name}
-                              </td>
-                              <td className="py-2 text-sm text-black w-1/9">
-                                {item.period}
-                              </td>
-                              <td
-                                className={`py-2 text-sm w-1/9 ${
-                                  item.completed === 1
-                                    ? "text-green-600"
-                                    : "text-red-600"
-                                }`}
-                              >
-                                {item.side.charAt(0).toUpperCase() }
-                              </td>
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                              />
+                            </svg>
+                            <span
+                              className={`${poppins.className} text-black font-semibold`}
+                            >
+                              {messages[index]}
+                            </span>
+                          </div>
+                        ) : (
+                          ques.map((item, index) => {
+                            const isEditing = editingRow === index;
+                            const tempDeadline =
+                              tempDeadlines[index] ?? item.deadline;
 
-                              <td
-                                className={`py-2 text-sm text-black w-2/9 ${
-                                  inter.className
-                                } font-medium ${
-                                  item.completed === 1
-                                    ? "text-gray-400 cursor-not-allowed"
-                                    : ""
-                                }`}
+                            return (
+                              <tr
+                                key={index}
+                                className={`${raleway.className} font-semibold`}
                               >
-                                <div className="flex items-center justify-center gap-4 w-4/5 mx-auto">
-                                  {isEditing ? (
-                                    <>
-                                      <input
-                                        type="date"
-                                        className="border rounded px-2 py-1 text-sm"
-                                        value={tempDeadline}
-                                        onChange={(e) =>
-                                          setTempDeadlines({
-                                            ...tempDeadlines,
-                                            [index]: e.target.value,
-                                          })
-                                        }
-                                      />
-                                      <ClipboardDocumentCheckIcon
-                                        className="w-6 h-6 cursor-pointer text-green-600"
-                                        onClick={() => {
-                                          item.deadline = tempDeadlines[index]; // save
-                                          setEditingRow(null);
-                                        }}
-                                      />
-                                      <XMarkIcon
-                                        className="w-6 h-6 cursor-pointer text-red-600"
-                                        onClick={() => {
-                                          setTempDeadlines({
-                                            ...tempDeadlines,
-                                            [index]: item.deadline,
-                                          }); // reset
-                                          setEditingRow(null);
-                                        }}
-                                      />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>{item.deadline}</span>
-                                      {item.completed !== 1 && (
-                                        <PencilSquareIcon
-                                          className="w-5 h-5 cursor-pointer"
-                                          onClick={() => setEditingRow(index)}
+                                <td className="text-start py-2 text-sm text-black w-4/9">
+                                  {item.name}
+                                </td>
+                                <td className="py-2 text-sm text-black w-1/9">
+                                  {item.period}
+                                </td>
+                                <td
+                                  className={`py-2 text-sm w-1/9 ${
+                                    item.completed === 1
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {item.side.charAt(0).toUpperCase()}
+                                </td>
+
+                                <td
+                                  className={`py-2 text-sm text-black w-2/9 ${
+                                    inter.className
+                                  } font-medium ${
+                                    item.completed === 1
+                                      ? "text-gray-400 cursor-not-allowed"
+                                      : ""
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-center gap-4 w-4/5 mx-auto">
+                                    {isEditing ? (
+                                      <>
+                                        <input
+                                          type="date"
+                                          className="border rounded px-2 py-1 text-sm"
+                                          value={tempDeadline}
+                                          onChange={(e) =>
+                                            setTempDeadlines({
+                                              ...tempDeadlines,
+                                              [index]: e.target.value,
+                                            })
+                                          }
                                         />
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </td>
+                                        <ClipboardDocumentCheckIcon
+                                          className="w-6 h-6 cursor-pointer text-green-600"
+                                          onClick={() => {
+                                            item.deadline =
+                                              tempDeadlines[index]; // save
+                                            setEditingRow(null);
+                                          }}
+                                        />
+                                        <XMarkIcon
+                                          className="w-6 h-6 cursor-pointer text-red-600"
+                                          onClick={() => {
+                                            setTempDeadlines({
+                                              ...tempDeadlines,
+                                              [index]: item.deadline,
+                                            }); // reset
+                                            setEditingRow(null);
+                                          }}
+                                        />
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>{item.deadline}</span>
+                                        {item.completed !== 1 && (
+                                          <PencilSquareIcon
+                                            className="w-5 h-5 cursor-pointer"
+                                            onClick={() => setEditingRow(index)}
+                                          />
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
 
-                              <td
-                                onClick={() => {
-                                  if (item.completed !== 1) {
-                                    const data = {
-                                      uhid: selecteduhidcompliance,
-                                      side: item.side,
-                                      name: item.name,
-                                      period: item.period,
-                                      deadline: tempDeadlines[index]
-                                    };
-                                    updateQuestionnaire(data);
-                                  }
-                                }}
-                                className={`w-1/9 ${
-                                  item.completed === 1
-                                    ? "text-gray-400 cursor-not-allowed"
-                                    : "text-black cursor-pointer"
-                                }`}
-                              >
-                                Reschedule
-                              </td>
-                            </tr>
-                          );
-                        })}
+                                <td
+                                  onClick={() => {
+                                    if (item.completed !== 1) {
+                                      const data = {
+                                        uhid: selecteduhidcompliance,
+                                        side: item.side,
+                                        name: item.name,
+                                        period: item.period,
+                                        deadline: tempDeadlines[index],
+                                      };
+                                      updateQuestionnaire(data);
+                                    }
+                                  }}
+                                  className={`w-1/9 ${
+                                    item.completed === 1
+                                      ? "text-gray-400 cursor-not-allowed"
+                                      : "text-black cursor-pointer"
+                                  }`}
+                                >
+                                  Reschedule
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>

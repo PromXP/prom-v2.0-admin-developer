@@ -158,6 +158,7 @@ const page = () => {
   const renderSelectedComponent = () => {
     switch (activeTab) {
       case "Patients":
+        console.clear();
         return (
           <Patientlist
             isOpenaccpat={isOpenaccpatient}
@@ -177,6 +178,7 @@ const page = () => {
         );
 
       case "Doctors":
+        console.clear();
         return (
           <Doctorlist
             isOpenaccpat={isOpenaccpatient}
@@ -187,6 +189,7 @@ const page = () => {
         );
 
       case "Report":
+        console.clear();
         return <Patientreport />;
 
 
@@ -196,6 +199,7 @@ const page = () => {
   };
 
   const handlelogout = () => {
+    console.clear(); // ✅ clear console logs
     router.replace("/Login");
   };
 

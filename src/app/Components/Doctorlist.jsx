@@ -33,7 +33,6 @@ import Call from "@/app/Assets/call.png";
 import Error from "@/app/Assets/error.png";
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
 
-
 import {
   ChevronRightIcon,
   ArrowUpRightIcon,
@@ -102,6 +101,7 @@ const Doctorlist = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [completionstatus, setcompletionstatus] = useState("COMPLETED");
   const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -125,7 +125,7 @@ const Doctorlist = ({
               ? Manavatar
               : Womanavatar,
         }));
-        console.log(doctorPatients);
+        // console.log(doctorPatients);
         setPatients(doctorPatients);
       } catch (err) {
         // console.error("❌ Error fetching patients:", err);
@@ -134,7 +134,9 @@ const Doctorlist = ({
         } else {
           setError("Network error");
         }
-      } 
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchPatients();
@@ -161,6 +163,7 @@ const Doctorlist = ({
     setCompletionStatus("all");
     setSortOrder("low_to_high");
     setSelectedDate(" ");
+    setSearchTerm("");
   };
 
   const handleApply = () => {
@@ -194,7 +197,23 @@ const Doctorlist = ({
     });
   }, [patients, sortOrder]);
 
-  const displayedPatients = searchTerm ? searchedPatients : sortedPatients;
+  const displayedPatients = searchTerm
+  ? sortedPatients.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  : sortedPatients;
+
+  useEffect(() => {
+  setCurrentPage(1);
+}, [searchTerm, sortedPatients.length]);
+
+// Optional: adjust rowsPerPage if it exceeds array length
+useEffect(() => {
+  if (rowsPerPage > displayedPatients.length) {
+    setRowsPerPage(Math.max(5, displayedPatients.length));
+  }
+}, [displayedPatients.length]);
 
   const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
   // Slice the data
@@ -293,7 +312,7 @@ const Doctorlist = ({
     try {
       const res = await axios.post(`${API_URL}upload-profile-photo`, formData);
 
-      console.log("Profile upload success:", res.data);
+      // console.log("Profile upload success:", res.data);
       showWarning("Image Upload Successfull");
       setimgupload(false);
     } catch (err) {
@@ -317,6 +336,22 @@ const Doctorlist = ({
     setShowAlert(true);
     setTimeout(() => setShowAlert(false), 4000);
   };
+
+  const messages = [
+    "Fetching doctors from the database...",
+    "Almost there, compiling progress...",
+    "Optimizing profiles...",
+    "Hang tight! Just a moment...",
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % messages.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -542,7 +577,6 @@ const Doctorlist = ({
               <div
                 className={`${poppins.className} h-[5%] flex flex-row items-center justify-end gap-4 px-4 text-[13px] font-medium text-gray-600`}
               >
-
                 {/* Rows per page */}
                 <span>Records per page:</span>
                 <select
@@ -553,7 +587,7 @@ const Doctorlist = ({
                     setCurrentPage(1); // Reset to first page
                   }}
                 >
-                  {generatePageOptions(patients.length).map((count) => (
+                  {generatePageOptions(displayedPatients.length).map((count) => (
                     <option key={count} value={count}>
                       {count}
                     </option>
@@ -614,7 +648,6 @@ const Doctorlist = ({
                     </svg>
                   </button>
                 </div>
-
               </div>
 
               <div
@@ -630,111 +663,141 @@ const Doctorlist = ({
                   gap: "1.5rem",
                 }}
               >
-                {paginatedPatients.map((patient, index) => (
-                  <div
-                    key={index}
-                    className="w-full h-[200px]  bg-white p-4 flex flex-col justify-between gap-2 rounded-md"
-                    style={{ minWidth: 0 }} // prevent overflow
-                  >
-                    {/* LEFT - Avatar + Name + Age */}
-                    <div className="flex items-center gap-4">
-                      <Image
-                        src={patient.avatar}
-                        alt="Avatar"
-                        className="rounded-full cursor-pointer w-12 h-12"
-                        width={40}
-                        height={40}
-                        onClick={() => {
-                          setshowprof(true);
-                          setshowprofpat(patient);
-                        }}
+                {loading ? (
+                  <div className="flex  space-x-2 w-full justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-black"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
                       />
-                      <div className="flex flex-col gap-3">
-                        <p
-                          className={`${raleway.className} text-[#475467] font-semibold text-lg`}
-                        >
-                          Dr. {patient.name}
-                        </p>
-                        <p
-                          className={`${poppins.className} font-normal text-sm text-[#475467]`}
-                        >
-                          {patient.age}, {patient.gender}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* RIGHT - UHID + Period + Status + Icons */}
-                    <div
-                      className={`flex flex-col justify-center items-center `}
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      />
+                    </svg>
+                    <span
+                      className={`${poppins.className} text-black font-semibold`}
                     >
-                      <p
-                        className={`${poppins.className} text-base font-medium text-[#475467] opacity-50`}
-                      >
-                        {patient.uhid}
-                      </p>
-                    </div>
-
-                    <div
-                      className={`flex flex-row justify-between ${
-                        shownotassigned ? "items-end" : "items-center"
-                      }`}
-                    >
-                      <div
-                        className={`${inter.className} font-semibold text-[#373737] text-sm w-1/2`}
-                      >
-                        {patient.count} Patients
-                      </div>
-
-                      {/* Progress Bar with Hover */}
-                      {patient.compliance === "NA" ? (
-                        <div className="w-1/2 flex flex-col items-end relative group">
-                          <Image
-                            src={Error}
-                            alt="Not assigned"
-                            className={`w-6 h-6`}
-                          />
-
-                          <div className="relative w-full h-1.5 overflow-hidden bg-white ">
-                            {/* Filled Progress */}
-                            <div
-                              className="h-3/4 bg-[#E5E5E5]"
-                              style={{
-                                width: "100%",
-                                backgroundImage: "url('/stripes.svg')",
-                                backgroundRepeat: "repeat",
-                                backgroundSize: "20px 20px",
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-1/2 flex flex-col items-center relative group">
-                          {/* Hover Percentage Text */}
-                          <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
-                            {patient.compliance || 0}%
-                          </div>
-
-                          {/* Progress Bar Container */}
-                          <div className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer">
-                            {/* Filled Progress */}
-                            <div
-                              className="h-full bg-[#EEDF11]"
-                              style={{
-                                width: `${patient.compliance || 0}%`,
-                                backgroundColor: getComplianceColor(
-                                  patient.compliance || 0
-                                ),
-                                backgroundImage: "url('/stripes.svg')",
-                                backgroundRepeat: "repeat",
-                                backgroundSize: "20px 20px",
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      {messages[index]}
+                    </span>
                   </div>
-                ))}
+                ) : (
+                  paginatedPatients.map((patient, index) => (
+                    <div
+                      key={index}
+                      className="w-full h-[200px]  bg-white p-4 flex flex-col justify-between gap-2 rounded-md"
+                      style={{ minWidth: 0 }} // prevent overflow
+                    >
+                      {/* LEFT - Avatar + Name + Age */}
+                      <div className="flex items-center gap-4">
+                        <Image
+                          src={patient.avatar}
+                          alt="Avatar"
+                          className="rounded-full cursor-pointer w-12 h-12"
+                          width={40}
+                          height={40}
+                          onClick={() => {
+                            setshowprof(true);
+                            setshowprofpat(patient);
+                          }}
+                        />
+                        <div className="flex flex-col gap-3">
+                          <p
+                            className={`${raleway.className} text-[#475467] font-semibold text-lg`}
+                          >
+                            Dr. {patient.name}
+                          </p>
+                          <p
+                            className={`${poppins.className} font-normal text-sm text-[#475467]`}
+                          >
+                            {patient.age}, {patient.gender}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* RIGHT - UHID + Period + Status + Icons */}
+                      <div
+                        className={`flex flex-col justify-center items-center `}
+                      >
+                        <p
+                          className={`${poppins.className} text-base font-medium text-[#475467] opacity-50`}
+                        >
+                          {patient.uhid}
+                        </p>
+                      </div>
+
+                      <div
+                        className={`flex flex-row justify-between ${
+                          shownotassigned ? "items-end" : "items-center"
+                        }`}
+                      >
+                        <div
+                          className={`${inter.className} font-semibold text-[#373737] text-sm w-1/2`}
+                        >
+                          {patient.count} Patients
+                        </div>
+
+                        {/* Progress Bar with Hover */}
+                        {patient.compliance === "NA" ? (
+                          <div className="w-1/2 flex flex-col items-end relative group">
+                            <Image
+                              src={Error}
+                              alt="Not assigned"
+                              className={`w-6 h-6`}
+                            />
+
+                            <div className="relative w-full h-1.5 overflow-hidden bg-white ">
+                              {/* Filled Progress */}
+                              <div
+                                className="h-3/4 bg-[#E5E5E5]"
+                                style={{
+                                  width: "100%",
+                                  backgroundImage: "url('/stripes.svg')",
+                                  backgroundRepeat: "repeat",
+                                  backgroundSize: "20px 20px",
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-1/2 flex flex-col items-center relative group">
+                            {/* Hover Percentage Text */}
+                            <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
+                              {patient.compliance || 0}%
+                            </div>
+
+                            {/* Progress Bar Container */}
+                            <div className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer">
+                              {/* Filled Progress */}
+                              <div
+                                className="h-full bg-[#EEDF11]"
+                                style={{
+                                  width: `${patient.compliance || 0}%`,
+                                  backgroundColor: getComplianceColor(
+                                    patient.compliance || 0
+                                  ),
+                                  backgroundImage: "url('/stripes.svg')",
+                                  backgroundRepeat: "repeat",
+                                  backgroundSize: "20px 20px",
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -783,7 +846,6 @@ const Doctorlist = ({
                       <div
                         className={`flex flex-row gap-4 items-center justify-center`}
                       >
-                  
                         <Image
                           src={CloseIcon}
                           alt="Close"
@@ -800,7 +862,6 @@ const Doctorlist = ({
                         width >= 1200 ? "flex-row" : "flex-col"
                       }`}
                     >
-                      
                       <div
                         className={`flex flex-col gap-2 justify-between w-full`}
                       >

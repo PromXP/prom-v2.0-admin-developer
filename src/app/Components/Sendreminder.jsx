@@ -131,7 +131,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
         processSide(patientData.Medical_Left, "Left");
         processSide(patientData.Medical_Right, "Right");
 
-        console.log("📝 Incomplete Questionnaires:", patientData.Medical_Left);
+        // console.log("📝 Incomplete Questionnaires:", patientData.Medical_Left);
         setQues(transformedQues); // replace your static ques
       } catch (err) {
         console.error("Error fetching patient reminder:", err);
@@ -165,14 +165,15 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
       uhid: selecteduhid,
       comment: followupmessage,
     };
-    console.log("Follow-up payload:", payload);
+    // console.log("Follow-up payload:", payload);
     try {
       const response = await axios.post(
         `${API_URL}provenance/followup`,
         payload
       );
-      console.log("Follow-up added:", response.data);
+      // console.log("Follow-up added:", response.data);
       showWarning("Follow-up added successfully!");
+      window.location.reload();
     } catch (err) {
       if (err.response) {
         const msg =
@@ -443,6 +444,8 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                 >
                   <a
                     href={`tel:${phone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer flex justify-center items-center ${
                       outfit.className
                     } ${width < 700 ? "w-1/2" : "w-1/3"}`}
