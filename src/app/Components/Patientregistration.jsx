@@ -263,8 +263,26 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     }
   };
 
-  const [selectedIDs, setSelectedIDs] = useState({});
   const idOptions = ["PASSPORT", "PAN", "AADHAAR", "ABHA"];
+  const [selectedIDs, setSelectedIDs] = useState(
+    idOptions.reduce((acc, id) => ({ ...acc, [id]: "NA" }), {})
+  );
+
+  const handleCheckboxChange = (id) => {
+    setSelectedIDs((prev) => {
+      const updated = { ...prev };
+      // toggle: NA <-> ""
+      updated[id] = prev[id] === "NA" ? "" : "NA";
+      return updated;
+    });
+  };
+
+  const handleInputChange = (id, value) => {
+    setSelectedIDs((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  };
 
   const [selectedFunding, setSelectedFunding] = useState("");
   const [otherFunding, setOtherFunding] = useState("");
@@ -280,25 +298,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
   const handleFundingChange = (value) => {
     setSelectedFunding(value);
     if (value !== "OTHER") setOtherFunding(""); // Clear other input if not selected
-  };
-
-  const handleCheckboxChange = (id) => {
-    setSelectedIDs((prev) => {
-      const updated = { ...prev };
-      if (id in updated) {
-        delete updated[id]; // uncheck: remove
-      } else {
-        updated[id] = ""; // check: add with empty string
-      }
-      return updated;
-    });
-  };
-
-  const handleInputChange = (id, value) => {
-    setSelectedIDs((prev) => ({
-      ...prev,
-      [id]: value,
-    }));
   };
 
   const [selectedKnees, setSelectedKnees] = useState([]); // e.g., ["left", "right"]
@@ -521,14 +520,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       const res = await axios.post(`${API_URL}patients/full`, payload);
       // console.log("✅ Patient created:", res.data);
       showWarning("Patient created successfully!");
-      if(profileImage){
-      handleUpload();
+      if (profileImage) {
+        handleUpload();
       }
     } catch (error) {
       // console.error("❌ Error creating patient:", error);
       showWarning("Failed to create patient" + error);
-    }
-    finally{
+    } finally {
       window.location.reload();
     }
   };
@@ -550,18 +548,14 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     formData.append("profile_image", profileImage);
 
     try {
-      const res = await axios.post(
-        `${API_URL}upload-profile-photo`,
-        formData
-      );
+      const res = await axios.post(`${API_URL}upload-profile-photo`, formData);
 
       // console.log("Profile upload success:", res.data);
       showWarning("Image uploaded successfully.");
-      
     } catch (err) {
       // console.error("Profile upload failed:", err);
       showWarning("Upload failed.");
-    } 
+    }
   };
 
   if (!isOpenacc || !mounted) return null;
@@ -1112,7 +1106,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       <input
                         type="checkbox"
-                        checked={selectedIDs.hasOwnProperty(id)}
+                        checked={selectedIDs[id] !== "NA"}
                         onChange={() => handleCheckboxChange(id)}
                         className="accent-[#319B8F]"
                       />
@@ -1141,7 +1135,8 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       text-lg
                       ${inter.className}
                     `}
-                      value={selectedIDs[id]}
+                      value={selectedIDs[id] === "NA" ? "" : selectedIDs[id]}
+                      disabled={selectedIDs[id] === "NA"}
                       onChange={(e) => handleInputChange(id, e.target.value)}
                     />
                   </div>

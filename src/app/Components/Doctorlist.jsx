@@ -198,22 +198,23 @@ const Doctorlist = ({
   }, [patients, sortOrder]);
 
   const displayedPatients = searchTerm
-  ? sortedPatients.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  : sortedPatients;
+    ? sortedPatients.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : sortedPatients;
 
   useEffect(() => {
-  setCurrentPage(1);
-}, [searchTerm, sortedPatients.length]);
+    setCurrentPage(1);
+  }, [searchTerm, sortedPatients.length]);
 
-// Optional: adjust rowsPerPage if it exceeds array length
-useEffect(() => {
-  if (rowsPerPage > displayedPatients.length) {
-    setRowsPerPage(Math.max(5, displayedPatients.length));
-  }
-}, [displayedPatients.length]);
+  // Optional: adjust rowsPerPage if it exceeds array length
+  useEffect(() => {
+    if (rowsPerPage > displayedPatients.length) {
+      setRowsPerPage(Math.max(5, displayedPatients.length));
+    }
+  }, [displayedPatients.length]);
 
   const totalPages = Math.ceil(displayedPatients.length / rowsPerPage);
   // Slice the data
@@ -256,6 +257,7 @@ useEffect(() => {
   }
 
   const dropdownRef = useRef(null);
+  const [reloadreq, setReloadreq] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -314,6 +316,7 @@ useEffect(() => {
 
       // console.log("Profile upload success:", res.data);
       showWarning("Image Upload Successfull");
+      setReloadreq(true);
       setimgupload(false);
     } catch (err) {
       console.error("Profile upload failed:", err);
@@ -361,10 +364,31 @@ useEffect(() => {
         }`}
       >
         <div
-          className={` ${width >= 1000 ? "w-1/5 pt-8 pb-2 " : "w-full"} ${
-            width < 400 ? "min-h-screen" : "h-full"
-          }`}
+          className={`flex flex-col ${
+            width >= 1000 ? "w-1/5 pt-8 pb-4 " : "w-full pt-8"
+          } ${width < 400 ? "min-h-screen" : "h-full"}`}
         >
+          <div
+            className={`  ${
+              width >= 700
+                ? "w-full justify-center items-center"
+                : "w-full items-center justify-center"
+            } flex flex-row gap-6 `}
+          >
+            <div className="w-fit flex flex-row items-center justify-center gap-3">
+              <p
+                className={`${raleway.className} font-bold text-2xl text-[#2B2B2B]`}
+              >
+                DOCTORS
+              </p>
+              <p
+                className={`${inter.className} font-bold text-4xl text-white py-1.5 px-4 bg-[#2A343D] rounded-[10px]`}
+              >
+                {patients.length ?? "NA"}
+              </p>
+            </div>
+          </div>
+
           <div
             className={`w-full h-full  flex  ${
               width >= 1000
@@ -377,7 +401,7 @@ useEffect(() => {
             <div
               className={`w-full flex justify-center items-end relative ${
                 width >= 1000
-                  ? "h-2/5"
+                  ? "h-4/9"
                   : width >= 400 && width < 1000
                   ? "h-full"
                   : "h-1/2"
@@ -587,11 +611,13 @@ useEffect(() => {
                     setCurrentPage(1); // Reset to first page
                   }}
                 >
-                  {generatePageOptions(displayedPatients.length).map((count) => (
-                    <option key={count} value={count}>
-                      {count}
-                    </option>
-                  ))}
+                  {generatePageOptions(displayedPatients.length).map(
+                    (count) => (
+                      <option key={count} value={count}>
+                        {count}
+                      </option>
+                    )
+                  )}
                 </select>
 
                 {/* Pagination controls */}
@@ -852,6 +878,9 @@ useEffect(() => {
                           className={`w-fit h-6 cursor-pointer`}
                           onClick={() => {
                             setshowprof(false);
+                            if(reloadreq){
+                              window.location.reload();
+                            }
                           }}
                         />
                       </div>

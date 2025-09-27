@@ -251,6 +251,7 @@ const Patientlist = ({
   const [selectedYear, setselectedYear] = useState(today.getFullYear());
 
   const [sortOrder, setSortOrder] = useState("low_to_high");
+  const [showAll, setShowAll] = useState(false); // false by default
 
   // Handlers
   const handleClearAll = () => {
@@ -263,6 +264,7 @@ const Patientlist = ({
     setselectedMonth("");
     setselectedYear(today.getFullYear());
     setSearchTerm("");
+    setShowAll(true); // Show everything when clear all
   };
 
   const handleApply = () => {
@@ -271,41 +273,58 @@ const Patientlist = ({
     setDropdownOpen(false);
   };
 
-  const filteredPatients = patients.filter((patient) => {
+  // 1️⃣ Apply search across all patients first
+  const searchedPatients = searchTerm
+    ? patients.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [...patients]; // copy all if no search
+
+  const filteredPatients = searchedPatients.filter((patient) => {
+    const qData =
+      side === "left"
+        ? patient.left_questionnaires
+        : patient.right_questionnaires;
+    const hasNoQuestionnaires =
+      !qData || Object.values(qData).every((q) => Object.keys(q).length === 0);
+
+    if (
+      hasNoQuestionnaires &&
+      completionStatus !== "pending" &&
+      completionStatus !== "completed"
+    )
+      return true; // include no-questionnaire patients unconditionally
+
     // 1️⃣ Side filter
     if (side) {
       const surgeryDate =
         side === "left" ? patient.surgery_left : patient.surgery_right;
-      // console.log("Side filter", surgeryDate);
-
-      // ❌ filter out if surgery date is missing or "NA"
       if (!surgeryDate || surgeryDate === "NA") return false;
     }
 
+    // 2️⃣ Operative period filter
     if (operativePeriod && operativePeriod !== "all") {
       if (
         operativePeriod === "pre-op" &&
         ((side === "left" && patient.period?.toLowerCase() !== "pre op") ||
           (side === "right" &&
             patient.period_right?.toLowerCase() !== "pre op"))
-      ) {
+      )
         return false;
-      }
 
       if (operativePeriod === "post-op") {
         const postOpPeriods = ["6w", "3m", "6m", "1y", "2y"];
-
         if (
           (side === "left" &&
             !postOpPeriods.includes(patient.period?.toLowerCase())) ||
           (side === "right" &&
             !postOpPeriods.includes(patient.period_right?.toLowerCase()))
-        ) {
+        )
           return false;
-        }
 
         if (subOperativePeriod && subOperativePeriod !== "all") {
-          // Just check if patient has a period matching the sub-period label
           if (
             (side === "left" &&
               patient.period?.toLowerCase() !==
@@ -313,17 +332,21 @@ const Patientlist = ({
             (side === "right" &&
               patient.period_right?.toLowerCase() !==
                 subOperativePeriod.toLowerCase())
-          ) {
+          )
             return false;
-          }
         }
       }
     }
 
     // 3️⃣ Completion Status filter
-    if (completionStatus && completionStatus !== "all") {
-      const compliance =
-        side === "left" ? patient.left_compliance : patient.right_compliance;
+    const compliance =
+      side === "left" ? patient.left_compliance : patient.right_compliance;
+
+    if (!showAll) {
+      // Default view: hide completed
+      if (compliance === 100) return false;
+    } else if (completionStatus && completionStatus !== "all") {
+      // Apply user-selected completionStatus filter
       if (completionStatus === "not_assigned" && compliance !== "NA")
         return false;
       if (
@@ -338,39 +361,24 @@ const Patientlist = ({
         return false;
     }
 
-    // 2️⃣ Determine which questionnaires to check
-    const qData =
-      side === "left"
-        ? patient.left_questionnaires
-        : patient.right_questionnaires;
-
-    // 3️⃣ Date filter (only if selectedDate is set)
+    // 4️⃣ Date / Month-Year filters
     if (selectedDate) {
       const selected = new Date(selectedDate).toISOString().split("T")[0];
-
-      const hasMatching = Object.values(qData || {}).some(
+      const hasMatching = Object.values(qData).some(
         (q) =>
           q &&
           typeof q === "object" &&
-          Object.values(q).some((period) => {
-            if (!period?.deadline) return false;
-            const deadline = new Date(period.deadline)
-              .toISOString()
-              .split("T")[0];
-            return deadline === selected;
-          })
+          Object.values(q).some(
+            (period) =>
+              period?.deadline &&
+              new Date(period.deadline).toISOString().split("T")[0] === selected
+          )
       );
-
       if (!hasMatching) return false;
-    }
-    // 4️⃣ Month-Year filter (only if selectedDate is NOT set)
-    else if (selectedMonth && selectedYear) {
-      const month = Number(selectedMonth); // 1 → January
+    } else if (selectedMonth && selectedYear) {
+      const month = Number(selectedMonth);
       const year = Number(selectedYear);
-
-      // console.log("Right questionnaire", qData);
-
-      const hasMatching = Object.values(qData || {}).some(
+      const hasMatching = Object.values(qData).some(
         (q) =>
           q &&
           typeof q === "object" &&
@@ -383,11 +391,13 @@ const Patientlist = ({
             );
           })
       );
-
       if (!hasMatching) return false;
     }
+
     return true;
   });
+
+  // console.log("Filtered list",filteredPatients);
 
   const getNearestDeadline = (patient, side) => {
     const qData =
@@ -411,65 +421,84 @@ const Patientlist = ({
     return new Date(Math.min(...deadlines));
   };
 
-  const searchedPatients = patients.filter((patient) => {
-    if (!searchTerm) return true; // no search applied
-    const term = searchTerm.toLowerCase();
-    return (
-      patient.name.toLowerCase().includes(term) ||
-      patient.uhid.toLowerCase().includes(term)
-    );
-  });
-
   const sortedPatients = filteredPatients.sort((a, b) => {
+    const aData =
+      side === "left" ? a.left_questionnaires : a.right_questionnaires;
+    const bData =
+      side === "left" ? b.left_questionnaires : b.right_questionnaires;
+
+    const aNoData =
+      !aData || Object.values(aData).every((q) => Object.keys(q).length === 0);
+    const bNoData =
+      !bData || Object.values(bData).every((q) => Object.keys(q).length === 0);
+
+    // NA-first
+    if (aNoData && !bNoData) return -1;
+    if (!aNoData && bNoData) return 1;
+    if (aNoData && bNoData) return 0;
+
+    // Pending vs Completed ranking
+    const getComplianceRank = (patient) => {
+      const compliance =
+        side === "left" ? patient.left_compliance : patient.right_compliance;
+      if (compliance === "NA") return 0; // should not happen here
+      if (compliance < 100) return 1; // pending
+      return 2; // completed
+    };
+
+    let aRank = getComplianceRank(a);
+    let bRank = getComplianceRank(b);
+
+    // Reverse rank if sortOrder is high_to_low
+    if (sortOrder === "high_to_low") {
+      aRank = 3 - aRank; // pending <-> completed
+      bRank = 3 - bRank;
+    }
+
+    if (aRank !== bRank) return aRank - bRank;
+
+    // Deadline-based sorting within same status
     const aDeadline = getNearestDeadline(a, side);
     const bDeadline = getNearestDeadline(b, side);
 
-    if (!aDeadline) return 1; // if a has no deadlines, push it to the end
-    if (!bDeadline) return -1; // if b has no deadlines, push it to the end
+    if (!aDeadline && !bDeadline) return 0;
+    if (!aDeadline) return 1;
+    if (!bDeadline) return -1;
 
-    if (sortOrder === "low_to_high") {
-      return aDeadline - bDeadline; // nearest first
-    } else {
-      return bDeadline - aDeadline; // farthest first
-    }
+    return sortOrder === "low_to_high"
+      ? aDeadline - bDeadline
+      : bDeadline - aDeadline;
   });
 
   // Use searchedPatients if searchTerm exists, otherwise filteredPatients
-  const displayedPatients = searchTerm
-  ? sortedPatients.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  : sortedPatients;
-
+  const displayedPatients = sortedPatients;
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50); // initial default
 
   // Whenever data or rowsPerPage change, reset page
   // Reset current page when searchTerm, filteredPatients, or rowsPerPage changes
-// Reset current page when searchTerm or filteredPatients length changes
-useEffect(() => {
-  setCurrentPage(1);
-}, [searchTerm, filteredPatients.length]);
+  // Reset current page when searchTerm or filteredPatients length changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filteredPatients.length]);
 
-// Optional: adjust rowsPerPage if it exceeds array length
-useEffect(() => {
-  if (rowsPerPage > displayedPatients.length) {
-    setRowsPerPage(Math.max(5, displayedPatients.length));
-  }
-}, [displayedPatients.length]);
+  // Optional: adjust rowsPerPage if it exceeds array length
+  useEffect(() => {
+    if (rowsPerPage > displayedPatients.length) {
+      setRowsPerPage(Math.max(5, displayedPatients.length));
+    }
+  }, [displayedPatients.length]);
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(displayedPatients.length / rowsPerPage)
+  );
 
-
-  const totalPages = Math.max(1, Math.ceil(displayedPatients.length / rowsPerPage));
-
-
-
-const paginatedPatients = displayedPatients.slice(
-  (currentPage - 1) * rowsPerPage,
-  currentPage * rowsPerPage
-);
+  const paginatedPatients = displayedPatients.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   const generatePageOptions = (total) => {
     const options = [5, 10, 25, 50].filter((n) => n < total);
@@ -527,6 +556,8 @@ const paginatedPatients = displayedPatients.slice(
   const [showprof, setshowprof] = useState(false);
   const [profpat, setshowprofpat] = useState([]);
   const [expand, setexpand] = useState(false);
+
+  const [reloadreq, setReloadreq] = useState(false);
 
   // Original value
   const [phone, setPhone] = useState(profpat?.phone);
@@ -591,6 +622,7 @@ const paginatedPatients = displayedPatients.slice(
       // ✅ Update local state
       setPhone(phoneInput);
       setIsEditPhone(false);
+      setReloadreq(true);
 
       showWarning("Phone number updated successfully");
     } catch (error) {
@@ -648,6 +680,7 @@ const paginatedPatients = displayedPatients.slice(
 
       setAlterPhone(alterphoneInput);
       setIsEditAlterPhone(false);
+      setReloadreq(true);
 
       showWarning("Alternate phone number updated successfully");
     } catch (error) {
@@ -718,6 +751,8 @@ const paginatedPatients = displayedPatients.slice(
       // ✅ Update local state again to be safe
       setEmail(emailInput);
       setIsEditEmail(false);
+
+      setReloadreq(true);
 
       showWarning("Email updated successfully");
     } catch (error) {
@@ -790,6 +825,7 @@ const paginatedPatients = displayedPatients.slice(
 
       setSelectedIDs((prev) => ({ ...prev, [id]: idInputs[id] }));
       setEditingID(null); // close edit
+      setReloadreq(true);
       showWarning(`${id} updated successfully`);
     } catch (error) {
       console.error("Error updating ID proof:", error);
@@ -835,6 +871,7 @@ const paginatedPatients = displayedPatients.slice(
 
       setAddress(addressInput);
       setIsEditAddress(null); // close edit
+      setReloadreq(true);
       showWarning(`Address updated successfully`);
     } catch (error) {
       console.error("Error updating Address:", error);
@@ -891,6 +928,7 @@ const paginatedPatients = displayedPatients.slice(
 
       // console.log("Profile upload success:", res.data);
       showWarning("Image Upload Successfull");
+      setReloadreq(true);
       setimgupload(false);
     } catch (err) {
       console.error("Profile upload failed:", err);
@@ -972,10 +1010,31 @@ const paginatedPatients = displayedPatients.slice(
         }`}
       >
         <div
-          className={` ${width >= 1000 ? "w-1/5 pt-8 pb-2 " : "w-full"} ${
-            width < 400 ? "min-h-screen" : "h-full"
-          }`}
+          className={`flex flex-col ${
+            width >= 1000 ? "w-1/5 pt-8 pb-4" : "w-full pt-8"
+          } ${width < 400 ? "min-h-screen" : "h-full"}`}
         >
+          <div
+            className={`  ${
+              width >= 700
+                ? "w-full justify-center items-center"
+                : "w-full items-center justify-center"
+            } flex flex-row gap-6 `}
+          >
+            <div className="w-fit flex flex-row items-center justify-center gap-3">
+              <p
+                className={`${raleway.className} font-bold text-2xl text-[#2B2B2B]`}
+              >
+                PATIENTS
+              </p>
+              <p
+                className={`${inter.className} font-bold text-4xl text-white py-1.5 px-4 bg-[#2A343D] rounded-[10px]`}
+              >
+                {patients.length ?? "NA"}
+              </p>
+            </div>
+          </div>
+
           <div
             className={`w-full h-full  flex ${
               width >= 1000
@@ -988,7 +1047,7 @@ const paginatedPatients = displayedPatients.slice(
             <div
               className={`w-full flex justify-center items-end relative ${
                 width >= 1000
-                  ? "h-2/5"
+                  ? "h-4/9"
                   : width >= 400 && width < 1000
                   ? "h-full"
                   : "h-1/2"
@@ -1364,11 +1423,13 @@ const paginatedPatients = displayedPatients.slice(
                   value={rowsPerPage}
                   onChange={(e) => setRowsPerPage(Number(e.target.value))}
                 >
-                  {generatePageOptions(displayedPatients.length).map((count) => (
-                    <option key={count} value={count}>
-                      {count}
-                    </option>
-                  ))}
+                  {generatePageOptions(displayedPatients.length).map(
+                    (count) => (
+                      <option key={count} value={count}>
+                        {count}
+                      </option>
+                    )
+                  )}
                 </select>
 
                 {/* Pagination controls */}
@@ -1597,7 +1658,9 @@ const paginatedPatients = displayedPatients.slice(
                               : ""
                           }`}
                         >
-                          {patient.left_compliance === "NA" ? (
+                          {(side === "left"
+                            ? patient.left_compliance
+                            : patient.right_compliance) === "NA" ? (
                             <div className="w-full flex flex-col items-end relative group">
                               <div
                                 className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}
@@ -1626,7 +1689,9 @@ const paginatedPatients = displayedPatients.slice(
                               <div
                                 className={`${poppins.className} absolute -top-7 left-0 transform translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black border-2 border-black px-3 rounded-lg`}
                               >
-                                {patient.left_compliance || 0}%
+                                {side === "left"
+                                  ? `${patient.left_compliance || 0}%`
+                                  : `${patient.right_compliance || 0}%`}
                               </div>
                               <div
                                 className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer"
@@ -1638,10 +1703,18 @@ const paginatedPatients = displayedPatients.slice(
                                 <div
                                   className="h-full"
                                   style={{
-                                    width: `${patient.left_compliance || 0}%`,
+                                    width: `${
+                                      side === "left"
+                                        ? patient.left_compliance || 0
+                                        : patient.right_compliance || 0
+                                    }%`,
+
                                     backgroundColor: getComplianceColor(
-                                      patient.left_compliance || 0
+                                      side === "left"
+                                        ? patient.left_compliance || 0
+                                        : patient.right_compliance || 0
                                     ),
+
                                     backgroundImage: "url('/stripes.svg')",
                                     backgroundRepeat: "repeat",
                                     backgroundSize: "20px 20px",
@@ -1709,9 +1782,14 @@ const paginatedPatients = displayedPatients.slice(
                           >
                             <Image
                               src={Reportimg}
-                              className="w-8 h-8 mx-auto cursor-pointer"
+                              className="w-8 h-8 mx-auto"
                               alt="Report"
                               onClick={() => {
+                                if (
+                                  patient.left_compliance === "NA" ||
+                                  !patient.activation_status
+                                )
+                                  return;
                                 handlenavigatereport();
                                 if (typeof window !== "undefined") {
                                   sessionStorage.setItem(
@@ -1824,6 +1902,9 @@ const paginatedPatients = displayedPatients.slice(
                           className={`w-fit h-6 cursor-pointer`}
                           onClick={() => {
                             setshowprof(false);
+                            if(reloadreq){
+                              window.location.reload();
+                            }
                           }}
                         />
                       </div>
@@ -2223,8 +2304,11 @@ const paginatedPatients = displayedPatients.slice(
                           {editingID !== id ? (
                             <div className="flex items-center gap-2">
                               <span className="text-black/90">
-                                {selectedIDs[id]}
+                                {selectedIDs[id] && selectedIDs[id].length > 5
+                                  ? selectedIDs[id].slice(0, -5) + "*****"
+                                  : selectedIDs[id]}
                               </span>
+
                               <PencilSquareIcon
                                 className="w-5 h-5 cursor-pointer text-gray-500"
                                 onClick={() => handleEditID(id)}
