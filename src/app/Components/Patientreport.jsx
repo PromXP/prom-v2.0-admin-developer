@@ -398,6 +398,13 @@ const Patientreport = () => {
     "Forgotten Joint Score": "FJS",
   };
 
+        const KOOSJR_MAP = [
+      100.0, 91.975, 84.6, 79.914, 76.332, 73.342, 70.704, 68.284, 65.994,
+      63.776, 61.583, 59.381, 57.14, 54.84, 52.465, 50.012, 47.487, 44.905,
+      42.281, 39.625, 36.931, 34.174, 31.307, 28.251, 24.875, 20.941, 15.939,
+      8.291, 0.0,
+    ];
+
   const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
     if (!apiData) return { periods: [], questionnaires: [] };
 
@@ -443,11 +450,16 @@ const Patientreport = () => {
         } else {
           // Period exists and score exists
           const match = periodData.score.match(/:\s*(\d+)/);
-          scores[p.key] = match ? match[1] : "NA";
-          // console.log(
-          //   "Questionnaire API Data all side:",
-          //   periodData.other_notes
-          // );
+          if (QUESTIONNAIRE_NAMES[qKey]) {
+            if (QUESTIONNAIRE_NAMES[qKey].includes("KOOS")) {
+              // ✅ Special handling for KOOS
+             
+              scores[p.key] = match ? KOOSJR_MAP[match[1]] : "NA";
+             
+            } else {
+              scores[p.key] = match ? match[1] : "NA";
+            }
+          }
           const [first, second, third, fourth] = periodData.other_notes || [];
           const filtered = [];
           if (first === "filledBy: Self") {
@@ -1610,8 +1622,20 @@ const Patientreport = () => {
 
                           {Object.keys(q.scores || {}).length > 0 ? (
                             questionnaireData.periods.map((period) => {
-                              const score = q.scores?.[period.key];
-                              const color = getTextColor(Number(score));
+                              const score=q.scores?.[period.key];
+                                let score1 = score; 
+                                const num = Number(score1);
+
+                                if (!isNaN(num)) {
+                                  if (q.name.includes("OKS")) {
+                                    score1 = ((num / 48) * 100).toFixed(1); // convert to 100
+                                  } else if (q.name.includes("FJS")) {
+                                    score1 = ((num / 60) * 100).toFixed(1); // convert to 100
+                                  }
+                                }
+
+                                const color = getTextColor(Number(score1));
+
 
                               return (
                                 <td
