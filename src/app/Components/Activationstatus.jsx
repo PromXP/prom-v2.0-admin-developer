@@ -237,6 +237,7 @@ const Activationstatus = ({
                       className={`w-fit h-6 cursor-pointer`}
                       onClick={() => {
                         setisActivationstatus(false);
+                        setPatient(null);
                         setexpand(false);
                       }}
                     />
