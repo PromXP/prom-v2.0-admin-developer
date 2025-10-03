@@ -1777,7 +1777,7 @@ const Patientlist = ({
                             } ${
                               !patient.activation_status
                                 ? "opacity-50 cursor-not-allowed"
-                                : ""
+                                : "cursor-pointer"
                             }`}
                           >
                             <Image
@@ -1786,7 +1786,7 @@ const Patientlist = ({
                               alt="Report"
                               onClick={() => {
                                 if (
-                                  patient.left_compliance === "NA" ||
+                                  
                                   !patient.activation_status
                                 )
                                   return;
