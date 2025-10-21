@@ -12,6 +12,7 @@ import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
 import ExpandIcon from "@/app/Assets/expand.png";
 import ShrinkIcon from "@/app/Assets/shrink.png";
+import { XCircleIcon } from "@heroicons/react/16/solid";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -96,63 +97,58 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedGender, setSelectedGender] = useState("Male"); // "female" | "male" | "other"
+  const [selectedGender, setSelectedGender] = useState(""); // "female" | "male" | "other"
   const [age, setAge] = useState(0);
-  const [selectedOptiondrop, setSelectedOptiondrop] = useState("NN");
+  const [selectedOptiondrop, setSelectedOptiondrop] = useState("");
+
+  const calendarRef = useRef(null);
+
+  const refs = {
+  firstName: useRef(null),
+  lastName: useRef(null),
+  ueid: useRef(null),
+  designation: useRef(null),
+  medicalcouncilnumber: useRef(null),
+  selectedDate: useRef(null),
+  email: useRef(null),
+  selectedGender: useRef(null),
+  phone: useRef(null),
+};
+
 
   const handleManualDateChange = (e) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+    let value = e.target.value;
 
-    if (value.length >= 3 && value.length <= 4) {
-      value = value.slice(0, 2) + "-" + value.slice(2);
-    } else if (value.length > 4 && value.length <= 8) {
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    } else if (value.length > 8) {
-      value = value.slice(0, 8);
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    }
+    // Allow only digits and dashes
+    value = value.replace(/[^0-9-]/g, "");
+
+    // Auto-insert dashes only when needed (optional)
+    if (/^\d{4}$/.test(value)) value += "-";
+    else if (/^\d{4}-\d{2}$/.test(value)) value += "-";
 
     setSelectedDate(value);
 
-    if (value.length === 10) {
-      const [dayStr, monthStr, yearStr] = value.split("-");
-      const day = parseInt(dayStr, 10);
-      const month = parseInt(monthStr, 10);
-      const year = parseInt(yearStr, 10);
+    // Validate only when full length reached
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [yearStr, monthStr, dayStr] = value.split("-");
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr);
+      const day = parseInt(dayStr);
 
       const today = new Date();
-      const currentYear = today.getFullYear();
+      today.setHours(0, 0, 0, 0);
 
-      // Basic validations
-      if (
-        day < 1 ||
-        day > 31 ||
-        month < 1 ||
-        month > 12 ||
-        year >= currentYear
-      ) {
-        showWarning("Please enter a valid date of birth.");
-        setSelectedDate("");
-        return;
-      }
-
-      // Check valid real date
       const manualDate = new Date(`${year}-${month}-${day}`);
+
       if (
-        manualDate.getDate() !== day ||
+        manualDate.getFullYear() !== year ||
         manualDate.getMonth() + 1 !== month ||
-        manualDate.getFullYear() !== year
+        manualDate.getDate() !== day
       ) {
         showWarning("Invalid date combination. Please enter a correct date.");
         setSelectedDate("");
         return;
       }
-
-      // Check if future or today
-      today.setHours(0, 0, 0, 0);
-      manualDate.setHours(0, 0, 0, 0);
 
       if (manualDate >= today) {
         showWarning("Birth date cannot be today or a future date.");
@@ -160,17 +156,68 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
         return;
       }
 
-      // ✅ Format as dd-mm-yyyy
-      const formattedDate = `${String(manualDate.getDate()).padStart(2, "0")}-${String(manualDate.getMonth() + 1).padStart(2, "0")}-${manualDate.getFullYear()}`;
+       let age = today.getFullYear() - manualDate.getFullYear();
 
-      setSelectedDate(formattedDate);
+
+    if (age < 23) {
+      showWarning("Age must be valid.");
+      setSelectedDate("");
+      return;
     }
+
+      // ✅ Keep final format yyyy-mm-dd
+      setSelectedDate(`${yearStr}-${monthStr}-${dayStr}`);
+      // 🔄 Sync hidden calendar too
+      if (calendarRef.current) {
+        calendarRef.current.value = `${yearStr}-${monthStr}-${dayStr}`;
+      }
+    }
+  };
+
+  const handleCalendarChange = (e) => {
+    const value = e.target.value; // yyyy-mm-dd
+    if (!value) return;
+
+    const [year, month, day] = value.split("-");
+    const selectedDateObj = new Date(`${year}-${month}-${day}`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDateObj.setHours(0, 0, 0, 0);
+
+    // 🚫 Prevent today or future
+    if (selectedDateObj >= today) {
+      showWarning("Pleae select a valid birth date");
+      setSelectedDate("");
+      e.target.value = ""; // clear calendar value
+      return;
+    }
+
+    // ✅ Keep internal format as yyyy-mm-dd
+    const formatted = `${year}-${month}-${day}`;
+    setSelectedDate(formatted);
+
+    // 🔄 Optional: if you want to display DD-MM-YYYY in the text box
+    // while storing YYYY-MM-DD internally
+    const display = `${day}-${month}-${year}`;
+    // setVisibleDate(display);
+
+    const manualDate = new Date(`${year}-${month}-${day}`);
+
+    const age = today.getFullYear() - manualDate.getFullYear();
+  
+    if (age < 23) {
+      showWarning("Age must be valid.");
+      setSelectedDate("");
+      return;
+    }
+
+    // Also update the hidden input for next open
+    if (calendarRef.current) calendarRef.current.value = formatted;
   };
 
   const [opendrop, setOpendrop] = useState(false);
 
   const optionsdrop = [
-    "NN",
     "A+",
     "A−",
     "B+",
@@ -234,8 +281,8 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
     setFirstName("");
     setLastName("");
     setueid("");
-    setSelectedGender("Male");
-    setSelectedOptiondrop("NN");
+    setSelectedGender("");
+    setSelectedOptiondrop("");
     setPhone("");
     setEmail("");
     setdesignation("");
@@ -254,27 +301,63 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
     const requiredFields = [
       { value: firstName, message: "First Name is required" },
       { value: lastName, message: "Last Name is required" },
-      { value: selectedGender, message: "Gender is required" },
-      { value: selectedDate, message: "Date of Birth is required" },
-      { value: designation, message: "Designation is required" },
       { value: ueid, message: "Doctor UEID is required" },
-      { value: adminemail, message: "Admin Email is required" },
+      { value: designation, message: "Designation is required" },
       {
         value: medicalcouncilnumber,
         message: "Medical Council Number is required",
       },
+      { value: selectedDate, message: "Date of Birth is required" },
+      { value: email, message: "Doctor Email is required" },
+      { value: selectedGender, message: "Gender is required" },
+      { value: phone, message: "Phone number is required" },
     ];
 
-    // ✅ Validate fields
-    for (let field of requiredFields) {
-      if (
-        !field.value ||
-        (Array.isArray(field.value) && field.value.length === 0)
-      ) {
-        showWarning(field.message);
-        return;
+   for (let field of requiredFields) {
+    if (!field.value || (Array.isArray(field.value) && field.value.length === 0)) {
+      showWarning(field.message);
+
+      // Map messages to refs
+      const messageToRef = {
+        "first name is required": refs.firstName,
+        "last name is required": refs.lastName,
+        "doctor ueid is required": refs.ueid,
+        "designation is required": refs.designation,
+        "medical council number is required": refs.medicalcouncilnumber,
+        "date of birth is required": refs.selectedDate,
+        "doctor email is required": refs.email,
+        "gender is required": refs.selectedGender,
+        "phone number is required": refs.phone,
+      };
+
+      const lowerMsg = field.message.toLowerCase();
+      const targetRef = messageToRef[lowerMsg];
+
+      if (targetRef?.current) {
+        targetRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        targetRef.current.focus?.();
+        targetRef.current.classList.add("ring-2", "ring-red-500");
+
+        setTimeout(() => {
+          targetRef.current.classList.remove("ring-2", "ring-red-500");
+        }, 2000);
       }
+
+      return; // stop validation after first missing field
     }
+  }
+
+  // ✅ Optional phone length check
+  if (phone.length !== 10) {
+    showWarning("Phone number must be 10 digits");
+    refs.phone?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    refs.phone?.current?.classList.add("ring-2", "ring-red-500");
+    setTimeout(() => refs.phone?.current?.classList.remove("ring-2", "ring-red-500"), 2000);
+    return;
+  }
 
     const payload = {
       doctor_name: `${firstName} ${lastName}`,
@@ -295,22 +378,17 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
       const res = await axios.post(`${API_URL}doctor/fhir`, payload);
 
       // console.log("✅ Doctor created:", res.data);
-      if(res.data.status === "failed"){
+      if (res.data.status === "failed") {
         showWarning("Doctor already found!");
-        
-      }
-      else{
+      } else {
         showWarning("Doctor created successfully!");
         window.location.reload();
       }
-      
     } catch (err) {
       console.error("❌ Error creating doctor:", err);
       showWarning("Failed to create doctor.");
     }
-   
   };
-
 
   const showWarning = (message) => {
     setAlertMessage(message);
@@ -325,6 +403,23 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
+  }, []);
+
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        clearAllFields();
+        setexpand(false);
+        onCloseacc();
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
   }, []);
 
   if (!isOpenacc || !mounted) return null;
@@ -360,12 +455,12 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
             >
               <div className="flex flex-row justify-between items-center w-full">
                 <p
-                  className={`${inter.className} text-2xl font-semibold text-black`}
+                  className={`w-1/2 ${inter.className} text-2xl font-semibold text-black`}
                 >
                   New Doctor
                 </p>
                 <div
-                  className={`flex flex-row gap-4 items-center justify-center`}
+                  className={`w-1/2 flex flex-row gap-4 items-center justify-end`}
                 >
                   {expand ? (
                     <Image
@@ -386,11 +481,13 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       className={`w-12 h-6 cursor-pointer`}
                     />
                   )}
-                  <Image
-                    src={CloseIcon}
-                    alt="Close"
-                    className={`w-fit h-6 cursor-pointer`}
-                    onClick={() => onCloseacc()}
+                  <XCircleIcon
+                    className="w-fit h-6 text-red-600  cursor-pointer"
+                    onClick={() => {
+                      onCloseacc();
+                      setexpand(false);
+                      clearAllFields();
+                    }}
                   />
                 </div>
               </div>
@@ -413,9 +510,10 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      First Name *
+                      First Name <span className="text-red-500">*</span>
                     </p>
                     <input
+                    ref={refs.firstName}
                       type="text"
                       className={`
                           w-full
@@ -429,7 +527,19 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                           ${inter.className}
                         `}
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => {
+                        // Remove non-alphabetic characters
+                        let value = e.target.value.replace(/[^a-zA-Z]/g, "");
+
+                        // Capitalize the first letter, lowercase the rest
+                        if (value.length > 0) {
+                          value =
+                            value.charAt(0).toUpperCase() +
+                            value.slice(1).toLowerCase();
+                        }
+
+                        setFirstName(value);
+                      }}
                     />
                   </div>
                   <div
@@ -440,9 +550,10 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Last Name *
+                      Last Name <span className="text-red-500">*</span>
                     </p>
                     <input
+                      ref={refs.lastName}
                       type="text"
                       className={`
                           w-full
@@ -456,7 +567,12 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                           ${inter.className}
                         `}
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => {
+                        // Allow only letters and spaces
+                        let value = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+
+                        setLastName(value);
+                      }}
                     />
                   </div>
                 </div>
@@ -480,9 +596,10 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      UEID *
+                      UEID <span className="text-red-500">*</span>
                     </p>
                     <input
+                      ref={refs.ueid}
                       type="text"
                       className={`
                         w-full
@@ -495,8 +612,14 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                         text-lg
                         ${inter.className}
                       `}
+                      maxLength={20}
                       value={ueid}
-                      onChange={(e) => setueid(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only letters, numbers, and hyphens
+                        const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
+                        setueid(filtered);
+                      }}
                     />
                   </div>
                   <div
@@ -507,9 +630,10 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Designation *
+                      Designation <span className="text-red-500">*</span>
                     </p>
                     <input
+                    ref={refs.designation}
                       type="text"
                       className={`
                           w-full
@@ -523,7 +647,16 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                           ${inter.className}
                         `}
                       value={designation}
-                      onChange={(e) => setdesignation(e.target.value)}
+                      onChange={(e) => {
+                        // Allow only letters and spaces
+                        let value = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+                        if (value.length > 0) {
+                          value =
+                            value.charAt(0).toUpperCase() +
+                            value.slice(1).toLowerCase();
+                        }
+                        setdesignation(value);
+                      }}
                     />
                   </div>
                 </div>
@@ -547,9 +680,11 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Medical Council Number *
+                      Medical Council Number{" "}
+                      <span className="text-red-500">*</span>
                     </p>
                     <input
+                    ref={refs.medicalcouncilnumber}
                       type="text"
                       className={`
                         w-full
@@ -563,7 +698,12 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                         ${inter.className}
                       `}
                       value={medicalcouncilnumber}
-                      onChange={(e) => setmedicalcouncilnumber(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only letters, numbers, and hyphens
+                        const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
+                        setmedicalcouncilnumber(filtered.toUpperCase());
+                      }}
                     />
                   </div>
                 </div>
@@ -587,39 +727,65 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Date of Birth *
+                      Date of Birth <span className="text-red-500">*</span>
                     </p>
-                    <input
-                      type="text"
-                      className={`
-                        w-full
-                        bg-transparent
-                        border-b-2
-                        border-black
-                        outline-none
-                        text-black
-                        font-medium
-                        text-lg
-                        ${inter.className}
-                      `}
-                      placeholder="DD-MM-YYYY"
-                      value={selectedDate}
-                      onChange={handleManualDateChange}
-                      maxLength={10}
-                    />
+                   <div className="relative w-full">
+                        {/* ✏️ Manual text input */}
+                        <input
+                        ref={refs.selectedDate}
+                          type="text"
+                          className={`
+                            w-full
+                            bg-transparent
+                            border-b-2
+                            border-black
+                            outline-none
+                            text-black/80
+                            py-1.5
+                            font-medium
+                            text-base
+                            pr-10
+                          `}
+                          placeholder="YYYY-MM-DD"
+                          value={selectedDate}
+                          onChange={handleManualDateChange}
+                          maxLength={10}
+                        />
+
+                        {/* 📅 Hidden date picker (covers icon only) */}
+                        <input
+                          ref={calendarRef}
+                          type="date"
+                          className="absolute top-0 right-0 opacity-0 cursor-pointer w-8 h-8"
+                          onChange={handleCalendarChange}
+                          min="1900-01-01"
+                          max={`${new Date().getFullYear() - 23}-12-31`} // 🔒 blocks current and future years
+                        />
+
+                        {/* 📅 Visible calendar icon */}
+                        <button
+                          type="button"
+                          onClick={() => calendarRef.current?.showPicker?.()}
+                          className="absolute right-2 top-1.5 text-gray-600 hover:text-black cursor-pointer"
+                          title="Pick from calendar"
+                        >
+                          📅
+                        </button>
+                      </div>
                   </div>
 
                   <div
-                    className={`flex flex-col gap-2 ${
+                    className={`flex flex-col justify-between ${
                       width >= 1200 ? "w-1/2" : "w-full"
                     }`}
                   >
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Email
+                      Email <span className="text-red-500">*</span>
                     </p>
                     <input
+                    ref={refs.email}
                       type="email"
                       className={`
                         w-full
@@ -634,6 +800,13 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       `}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (email && !emailRegex.test(email)) {
+                          showWarning("Please enter a valid email address.");
+                          setEmail("");
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -676,7 +849,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       onChange={(e) => setSelectedOptiondrop(e.target.value)}
                     >
                       <option value="" disabled>
-                        Select Blood Group
+                        Select
                       </option>
                       {optionsdrop.map((option, idx) => (
                         <option key={idx} value={option}>
@@ -694,9 +867,10 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Gender *
+                      Gender <span className="text-red-500">*</span>
                     </p>
                     <select
+                    ref={refs.selectedGender}
                       className={`
                         w-full
                         bg-transparent
@@ -712,6 +886,9 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       value={selectedGender}
                       onChange={(e) => setSelectedGender(e.target.value)}
                     >
+                      <option value="" disabled>
+                        Select
+                      </option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                       <option value="other">Other</option>
@@ -734,10 +911,14 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Phone Number
+                      Phone Number <span className="text-red-500">*</span>
                     </p>
                     <input
-                      type="text"
+                    ref={refs.phone}
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={10}
                       className={`
                         w-full
                         bg-transparent
@@ -750,7 +931,16 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                         ${inter.className}
                       `}
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ""); // keep only digits
+                        setPhone(value);
+                      }}
+                      onBlur={() => {
+                        if (phone && phone.length !== 10) {
+                          showWarning("Phone number must be 10 digits");
+                          return;
+                        }
+                      }}
                     />
                   </div>
                 </div>

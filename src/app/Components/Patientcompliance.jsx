@@ -26,6 +26,7 @@ import {
   ChevronLeftIcon,
   ClipboardDocumentCheckIcon,
   XMarkIcon,
+  XCircleIcon,
 } from "@heroicons/react/16/solid";
 
 const raleway = Raleway({
@@ -133,6 +134,8 @@ const Patientcompliance = ({
           ...transformData(res.data.patient.Medical_Right, "right"),
         ]);
 
+        
+
         // console.log("Fetched patient data:", {
         //   transformData: transformData(res.data.patient.Medical_Left),
         // });
@@ -200,6 +203,31 @@ const Patientcompliance = ({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        setPatientName("");
+        setQues([]);
+        setisOpencompliance();
+        setexpand(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
+
+  const periodOrder = ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"];
+
+// Sort ques by period
+const sortedQues = [...ques].sort(
+  (a, b) => periodOrder.indexOf(a.period) - periodOrder.indexOf(b.period)
+);
+
   if (!isOpencompliance || !mounted) return null;
 
   return createPortal(
@@ -260,11 +288,11 @@ const Patientcompliance = ({
                         className={`w-12 h-6 cursor-pointer`}
                       />
                     )}
-                    <Image
-                      src={CloseIcon}
-                      alt="Close"
-                      className={`w-fit h-6 cursor-pointer`}
+
+                    <XCircleIcon
+                      className={`w-6 h-6 text-red-600 cursor-pointer`}
                       onClick={() => {
+                        setPatientName("");
                         setQues([]);
                         setisOpencompliance();
                         setexpand(false);
@@ -301,7 +329,7 @@ const Patientcompliance = ({
                       </thead>
 
                       <tbody>
-                        {ques.length === 0 ? (
+                        {sortedQues.length === 0 ? (
                           <div className="flex py-2 items-center space-x-2 w-full justify-center">
                             <svg
                               className="animate-spin h-5 w-5 text-black"
@@ -330,7 +358,7 @@ const Patientcompliance = ({
                             </span>
                           </div>
                         ) : (
-                          ques.map((item, index) => {
+                          sortedQues.map((item, index) => {
                             const isEditing = editingRow === index;
                             const tempDeadline =
                               tempDeadlines[index] ?? item.deadline;
@@ -405,6 +433,7 @@ const Patientcompliance = ({
                                           <PencilSquareIcon
                                             className="w-5 h-5 cursor-pointer"
                                             onClick={() => setEditingRow(index)}
+                                            title="Click to edit the deadline"
                                           />
                                         )}
                                       </>
@@ -430,6 +459,7 @@ const Patientcompliance = ({
                                       ? "text-gray-400 cursor-not-allowed"
                                       : "text-black cursor-pointer"
                                   }`}
+                                  title="Click to confirm the modified deadline"
                                 >
                                   Reschedule
                                 </td>

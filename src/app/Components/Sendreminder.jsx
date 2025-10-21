@@ -9,7 +9,7 @@ import { API_URL } from "../libs/global";
 
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
-import { ArrowsRightLeftIcon } from "@heroicons/react/16/solid";
+import { ArrowsRightLeftIcon, XCircleIcon } from "@heroicons/react/16/solid";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
 import ExpandIcon from "@/app/Assets/expand.png";
@@ -131,7 +131,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
         processSide(patientData.Medical_Left, "Left");
         processSide(patientData.Medical_Right, "Right");
 
-        // console.log("📝 Incomplete Questionnaires:", patientData.Medical_Left);
+        // console.log("📝 Incomplete Questionnaires:", transformedQues);
         setQues(transformedQues); // replace your static ques
       } catch (err) {
         console.error("Error fetching patient reminder:", err);
@@ -296,6 +296,32 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
 
   const [switchcont, setSwitchcont] = useState(false);
 
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        onClosereminder();
+        setSwitchcont(false);
+        setremindermessage("");
+        setfollowupmessage("");
+        setexpand(false);
+        setPatient(null);
+        setQues([]);
+        setFollowup([]);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("notifyflag", "false");
+          sessionStorage.setItem("patientnotifyid", "");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
+
   if (!isOpenreminder || !mounted) return null;
 
   return createPortal(
@@ -307,7 +333,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
     >
       <div
         className={`
-             min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
+             h-screen  flex flex-col items-center justify-center mx-auto my-auto
              ${width < 950 ? "gap-4 w-full" : "w-1/2"}
              ${expand ? "w-full" : "p-4"}
            `}
@@ -315,15 +341,15 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
         <div
           className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
             width < 1095 ? "flex flex-col gap-4" : ""
-          } ${expand ? "max-h-[100vh]" : "max-h-[92vh] rounded-2xl"}`}
+          } ${expand ? "h-screen" : "max-h-[92vh] rounded-2xl"}`}
         >
           <div
             className={`w-full bg-[#FCFCFC]  ${
-              width < 760 ? "h-fit" : "h-[80%]"
+              width < 760 ? "h-fit" : "h-fit"
             } `}
           >
             <div
-              className={`w-full h-full rounded-lg flex flex-col gap-8 ${
+              className={`w-full h-fit rounded-lg flex flex-col gap-8 ${
                 width < 760 ? "py-0" : "py-4 px-8"
               }`}
             >
@@ -342,8 +368,9 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
 
                   <div
                     className={`${raleway.className} w-1/3 flex flex-col items-center gap-1 text-black font-semibold`}
+                    title={!switchcont ? "Click to Follow Up" : "Click to Reminder"}
                   >
-                    {!switchcont ? "Follow Up" : "Reminder"}
+                    {!switchcont ? "Switch to Follow Up" : "Switch to Reminder"}
                     <ArrowsRightLeftIcon
                       className={`w-6 h-6 text-black cursor-pointer`}
                       onClick={() => setSwitchcont(!switchcont)}
@@ -371,16 +398,22 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                         className={`w-12 h-6 cursor-pointer`}
                       />
                     )}
-                    <Image
-                      src={CloseIcon}
-                      alt="Close"
-                      className={`w-fit h-6 cursor-pointer`}
+
+                    <XCircleIcon
+                      className={`w-6 h-6 text-red-600 cursor-pointer`}
                       onClick={() => {
                         onClosereminder();
                         setSwitchcont(false);
                         setremindermessage("");
                         setfollowupmessage("");
                         setexpand(false);
+                        setPatient(null);
+                        setQues([]);
+                        setFollowup([]);
+                        if (typeof window !== "undefined") {
+                          sessionStorage.setItem("notifyflag", "false");
+                          sessionStorage.setItem("patientnotifyid", "");
+                        }
                       }}
                     />
                   </div>
@@ -401,7 +434,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                 <p
                   className={`${outfit.className} text-lg font-normal text-black`}
                 >
-                  {!switchcont ? "Reminder" : "Add Follow Up Comment"}
+                  {!switchcont ? "Reminder Message" : "Admin Follow Up Notes"}
                 </p>
 
                 <div
@@ -420,6 +453,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                               ? "bg-blue-200 border-blue-500"
                               : "bg-gray-100"
                           }`}
+                          title="Select any one reminder message"
                         >
                           {template}
                         </div>
@@ -428,9 +462,11 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                   ) : (
                     <textarea
                       rows={10}
+                      maxLength={100}
                       value={followupmessage}
                       onChange={(e) => setfollowupmessage(e.target.value)}
-                      className="px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black"
+                      placeholder="Enter follow up comment (max 100 characters"
+                      className={` ${inter.className} px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black`}
                     />
                   )}
                 </div>
@@ -443,12 +479,13 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                   }`}
                 >
                   <a
-                    href={`tel:${phone}`}
+                    href={`tel:+91${phone}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer flex justify-center items-center ${
                       outfit.className
                     } ${width < 700 ? "w-1/2" : "w-1/3"}`}
+                    title="Contact Patient"
                   >
                     CALL
                   </a>
@@ -484,8 +521,9 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                         handleSubmit();
                       }
                     }}
+                    title={!switchcont ? "Send reminder to patient" : "Save the follow up notes"}
                   >
-                    SEND
+                    {!switchcont ? "SEND" : "NOTE"}
                   </button>
                 </div>
               </div>
@@ -498,7 +536,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                 <p
                   className={`${outfit.className} text-lg font-normal text-black`}
                 >
-                  {!switchcont ? "Pending" : "Follow Up"}
+                  {!switchcont ? "Pending" : "Follow Up History"}
                 </p>
 
                 <div
@@ -507,57 +545,102 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                   } ${width < 700 ? "flex-col" : "flex-col"}`}
                 >
                   {!switchcont ? (
-                    <table
-                      className={`w-full ${inter.className} font-medium text-center text-black`}
-                    >
-                      <thead>
-                        <tr>
-                          <th className=" text-sm font-semibold text-black py-2">
-                            S. No
-                          </th>
-                          <th className=" text-sm font-semibold text-black py-2">
-                            Period
-                          </th>
-                          <th className=" text-sm font-semibold text-black py-2">
-                            Name
-                          </th>
-                          <th className=" text-sm font-semibold text-black py-2">
-                            Side
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {ques.map((item, index) => (
-                          <tr key={index}>
-                            <td className="py-2 text-sm text-center text-black">
-                              {index + 1}
-                            </td>
-                            <td className="py-2 text-sm text-black">
-                              {item.period}
-                            </td>
-                            <td className="py-2 text-sm text-black">
-                              {item.name}
-                            </td>
-                            <td className="py-2 text-sm text-black">
-                              {item.side}
-                            </td>
+                    ques && ques.length > 0 ? (
+                      <table
+                        className={`w-full ${inter.className} font-medium text-center text-black border border-solid border-gray-400 rounded-lg`}
+                        style={{
+                          borderCollapse: "separate",
+                          borderSpacing: "8px 8px",
+                        }}
+                      >
+                        <thead>
+                          <tr>
+                            <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                              S. No
+                            </th>
+                            <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                              Period
+                            </th>
+                            <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                              Name
+                            </th>
+                            <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                              Side
+                            </th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
+                        </thead>
+                        <tbody>
+                          {[...ques]
+                            .sort((a, b) => {
+                              const periodOrder = [
+                                "Pre Op",
+                                "6W",
+                                "3M",
+                                "6M",
+                                "1Y",
+                                "2Y",
+                              ];
+                              const periodDiff =
+                                periodOrder.indexOf(a.period) -
+                                periodOrder.indexOf(b.period);
+                              if (periodDiff !== 0) return periodDiff;
+                              return a.side === "Left" ? -1 : 1; // Left before Right
+                            })
+                            .map((item, index) => (
+                              <tr key={index}>
+                                <td className="py-2 text-sm text-center text-black">
+                                  {index + 1}
+                                </td>
+                                <td className="py-2 text-sm text-black">
+                                  {item.period}
+                                </td>
+                                <td
+                                  className="py-2 text-sm text-black break-words text-center"
+                                  style={{
+                                    maxWidth: "250px",
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {item.name}
+                                </td>
+                                <td
+                                  className={`py-2 text-sm ${
+                                    item.side === "Left"
+                                      ? "text-teal-500"
+                                      : "text-orange-500"
+                                  } text-black`}
+                                >
+                                  {item.side}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p
+                        className={` ${raleway.className} font-semibold text-center text-gray-500 py-4 text-sm`}
+                      >
+                        No Questionnaire pending
+                      </p>
+                    )
+                  ) : followup && followup.length > 0 ? (
                     <table
-                      className={`w-full ${inter.className} font-medium text-center text-black`}
+                      className={`w-full ${inter.className} font-medium text-center text-black border border-solid border-gray-400 rounded-lg`}
+                      style={{
+                        borderCollapse: "separate",
+                        borderSpacing: "8px 8px",
+                      }}
                     >
                       <thead>
                         <tr>
-                          <th className="text-sm font-semibold text-black py-2">
+                          <th className="text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
                             S. No
                           </th>
-                          <th className="text-sm font-semibold text-black py-2">
+                          <th className="text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
                             Timestamp
                           </th>
-                          <th className="text-sm font-semibold text-black py-2">
+                          <th className="text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
                             Follow Up Comment
                           </th>
                         </tr>
@@ -590,7 +673,14 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                                 <td className="py-2 text-sm text-black">
                                   {formattedDate}
                                 </td>
-                                <td className="py-2 text-sm text-black">
+                                <td
+                                  className="py-2 text-sm text-black break-words text-center"
+                                  style={{
+                                    maxWidth: "250px", // ✅ controls wrapping width
+                                    whiteSpace: "normal", // ✅ allows text to wrap
+                                    wordBreak: "break-word", // ✅ breaks long strings if needed
+                                  }}
+                                >
                                   {item.follow_up_comment}
                                 </td>
                               </tr>
@@ -598,9 +688,16 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                           })}
                       </tbody>
                     </table>
+                  ) : (
+                    <p
+                      className={` ${raleway.className} font-semibold text-center text-gray-500 py-4 text-sm`}
+                    >
+                      No history found
+                    </p>
                   )}
                 </div>
               </div>
+
             </div>
             {showAlert && (
               <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">

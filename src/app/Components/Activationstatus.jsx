@@ -12,6 +12,7 @@ import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
 import ExpandIcon from "@/app/Assets/expand.png";
 import ShrinkIcon from "@/app/Assets/shrink.png";
+import { XCircleIcon } from "@heroicons/react/16/solid";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -171,18 +172,39 @@ const Activationstatus = ({
     }
   };
 
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("activflag", "false");
+          sessionStorage.setItem("patientactivid", "");
+        }
+        setisActivationstatus(false);
+        setPatient(null);
+        setexpand(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
+
   if (!isActivationstatus || !mounted) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-40 "
+      className="fixed inset-0 z-40"
       style={{
         backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
       }}
     >
       <div
         className={`
-               min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
+               h-screen  flex flex-col items-center justify-center mx-auto my-auto
                ${width < 950 ? "gap-4 w-full" : "w-1/2"}
                ${expand ? "w-full" : "p-4"}
              `}
@@ -190,11 +212,11 @@ const Activationstatus = ({
         <div
           className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
             width < 1095 ? "flex flex-col gap-4" : ""
-          } ${expand ? "max-h-[100vh]" : "max-h-[92vh] rounded-2xl"}`}
+          } ${expand ? "h-screen" : "max-h-[92vh] rounded-2xl"}`}
         >
           <div
             className={`w-full bg-[#FCFCFC]  ${
-              width < 760 ? "h-fit" : "h-[80%]"
+              width < 760 ? "h-fit" : "h-full"
             } `}
           >
             <div
@@ -205,12 +227,12 @@ const Activationstatus = ({
               <div className={`w-full flex flex-col gap-1`}>
                 <div className="flex flex-row justify-between items-center w-full">
                   <p
-                    className={`${inter.className} text-2xl font-semibold text-black`}
+                    className={`${inter.className} text-2xl w-1/2 font-semibold text-black`}
                   >
-                    Confirmation
+                    Activation / Deactivation
                   </p>
                   <div
-                    className={`flex flex-row gap-4 items-center justify-center`}
+                    className={`w-1/2 flex flex-row gap-4 items-center justify-end`}
                   >
                     {expand ? (
                       <Image
@@ -231,11 +253,13 @@ const Activationstatus = ({
                         className={`w-12 h-6 cursor-pointer`}
                       />
                     )}
-                    <Image
-                      src={CloseIcon}
-                      alt="Close"
-                      className={`w-fit h-6 cursor-pointer`}
+                    <XCircleIcon
+                      className="w-fit h-7 text-red-600  cursor-pointer"
                       onClick={() => {
+                        if (typeof window !== "undefined") {
+                          sessionStorage.setItem("activflag", "false");
+                          sessionStorage.setItem("patientactivid", "");
+                        }
                         setisActivationstatus(false);
                         setPatient(null);
                         setexpand(false);
@@ -265,7 +289,9 @@ const Activationstatus = ({
                     rows={10}
                     value={comment}
                     onChange={(e) => setcomment(e.target.value)}
-                    className="px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black"
+                    maxLength={100}
+                    placeholder="Enter comment (max 100 characters)"
+                    className={` ${inter.className} px-2 py-1 text-sm w-full bg-[#F3F3F3] text-black`}
                   />
                 </div>
               </div>
@@ -294,7 +320,7 @@ const Activationstatus = ({
                       updatePatient(selectedpatuhidactivation);
                     }}
                   >
-                    SEND
+                    {String(status) === "false" ? "Activate" : "Deactivate"}
                   </button>
                 </div>
               </div>
@@ -307,77 +333,103 @@ const Activationstatus = ({
                 <p
                   className={`${outfit.className} text-lg font-normal text-black`}
                 >
-                  Activation Logs
+                  Activation / Deactivation History
                 </p>
 
                 <div
-                  className={`flex gap-4 ${
+                  className={`flex gap-4 pb-4 ${
                     width >= 1200 ? "w-full" : "w-full"
                   } ${width < 700 ? "flex-col" : "flex-col"}`}
                 >
-                  <table
-                    className={`w-full ${inter.className} font-medium text-center text-black`}
-                  >
-                    <thead>
-                      <tr>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          S. No
-                        </th>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          Timestamp
-                        </th>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          Comment
-                        </th>
-                        <th className=" text-sm font-semibold text-black py-2">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {patient
-                        ?.slice() // make a copy to avoid mutating state
-                        .sort(
-                          (a, b) => new Date(b.recorded) - new Date(a.recorded)
-                        ) // ✅ latest first
-                        .map((item, index) => {
-                          // ✅ Convert to IST & format as dd/mm/yyyy - hh:mm
-                          const date = new Date(item.recorded);
+                  {patient && patient.length > 0 ? (
+                    <table
+                      className={`w-full ${inter.className} font-medium text-center text-black border border-solid border-gray-400 rounded-lg`}
+                      style={{
+                        borderCollapse: "separate",
+                        borderSpacing: "8px 8px",
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                            S. No
+                          </th>
+                          <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                            Timestamp
+                          </th>
+                          <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                            Comment
+                          </th>
+                          <th className=" text-sm font-semibold text-black py-2 border-b border-dashed border-gray-500">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {patient
+                          ?.slice() // make a copy to avoid mutating state
+                          .sort(
+                            (a, b) =>
+                              new Date(b.recorded) - new Date(a.recorded)
+                          ) // ✅ latest first
+                          .map((item, index) => {
+                            // ✅ Convert to IST & format as dd/mm/yyyy - hh:mm
+                            const date = new Date(item.recorded);
 
-                          const formattedDate = date
-                            .toLocaleString("en-GB", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                            .replace(",", " -"); // "dd/mm/yyyy - hh:mm"
+                            const formattedDate = date
+                              .toLocaleString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                              .replace(",", " -"); // "dd/mm/yyyy - hh:mm"
 
-                          // ✅ Status formatting
-                          const statusText = item.activation_status
-                            ? "Activated"
-                            : "Deactivated";
+                            // ✅ Status formatting
+                            const statusText = item.activation_status
+                              ? "Activated"
+                              : "Deactivated";
 
-                          return (
-                            <tr key={index}>
-                              <td className="py-2 text-sm text-center text-black">
-                                {index + 1}
-                              </td>
-                              <td className="py-2 text-sm text-black">
-                                {formattedDate}
-                              </td>
-                              <td className="py-2 text-sm text-black">
-                                {item.activation_comment}
-                              </td>
-                              <td className="py-2 text-sm text-black">
-                                {statusText}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
+                            return (
+                              <tr key={index}>
+                                <td className="py-2 text-sm text-center text-black">
+                                  {index + 1}
+                                </td>
+                                <td className="py-2 text-sm text-black">
+                                  {formattedDate}
+                                </td>
+                                <td
+                                  className="py-2 text-sm text-black break-words text-center"
+                                  style={{
+                                    maxWidth: "250px", // ✅ controls wrapping width
+                                    whiteSpace: "normal", // ✅ allows text to wrap
+                                    wordBreak: "break-word", // ✅ breaks long strings if needed
+                                  }}
+                                >
+                                  {item.activation_comment}
+                                </td>
+                                <td
+                                  className={`py-2 text-sm font-semibold ${
+                                    statusText === "Activated"
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {statusText}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p
+                      className={` ${raleway.className} font-semibold text-center text-gray-500 py-4 text-sm`}
+                    >
+                      No history found
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

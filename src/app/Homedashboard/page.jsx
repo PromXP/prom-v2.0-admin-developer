@@ -22,7 +22,7 @@ import { Bars3Icon } from "@heroicons/react/24/outline";
 
 import MainBg from "@/app/Assets/mainbg.png";
 import MainsubBg from "@/app/Assets/mainsubbg.png";
-import Logo from "@/app/Assets/logo.png";
+import Logo from "@/app/Assets/xolabslogo.png";
 import Headset from "@/app/Assets/headset.png";
 import Patdocacc from "@/app/Assets/patdocacc.png";
 import Manavatar from "@/app/Assets/man.png";
@@ -45,6 +45,8 @@ import {
   ClipboardDocumentCheckIcon,
   XMarkIcon,
   ArrowRightStartOnRectangleIcon,
+  ArrowLeftIcon,
+  XCircleIcon,
 } from "@heroicons/react/16/solid";
 
 import Patientlist from "../Components/Patientlist";
@@ -129,6 +131,9 @@ const page = () => {
   const [isOpenresetpassword, setisOpenresetpassword] = useState(false);
 
   const handlenavigatereport = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("deleteside", "left");
+    }
     setActiveTab("Report");
   };
 
@@ -152,8 +157,6 @@ const page = () => {
 
     fetchPatientReminder();
   }, [adminame]);
-
-
 
   const renderSelectedComponent = () => {
     switch (activeTab) {
@@ -192,15 +195,15 @@ const page = () => {
         console.clear();
         return <Patientreport />;
 
-
       default:
         return null;
     }
   };
 
+  const [logoutconfirm, setlogoutconfirm] = useState(false);
+
   const handlelogout = () => {
-    console.clear(); // ✅ clear console logs
-    router.replace("/Login");
+    setlogoutconfirm(true);
   };
 
   useEffect(() => {
@@ -248,8 +251,8 @@ const page = () => {
             {width >= 800 ? (
               <div className="w-full h-[10%] flex flex-row">
                 <div className="w-1/5 px-4">
-                  <div className="w-fit flex flex-col items-center">
-                    <Image src={Logo} alt="XoLabs" className="w-20 h-12" />
+                  <div className="w-fit flex flex-col items-center pt-4">
+                    <Image src={Logo} alt="XoLabs" className="w-20 h-6" />
 
                     <span
                       className={`${raleway.className} text-lg font-semibold text-black`}
@@ -258,31 +261,48 @@ const page = () => {
                     </span>
                   </div>
                 </div>
-                <div className="w-4/5 flex flex-row border-b-2 pb-4 border-gray-300">
+                <div className="w-4/5 flex flex-row items-end border-b-2 pb-4 border-gray-300">
+                  {activeTab === "Report" && (
+                    <ArrowLeftIcon
+                      className={`w-7 h-7 text-black cursor-pointer`}
+                      title="Back to Home Dashboard"
+                      onClick={() => {
+                        setActiveTab("Patients");
+                        if (typeof window !== "undefined") {
+                          sessionStorage.setItem("deleteside", "left");
+                        }
+                      }}
+                    />
+                  )}
+
                   <div className="w-5/7 flex flex-row gap-20 items-end justify-center">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`relative font-semibold text-lg ${
-                          raleway.className
-                        }  cursor-pointer ${
-                          activeTab === tab ? "text-teal-600" : "text-black"
-                        }`}
-                      >
-                        {tab}
-                        <span
-                          className="absolute right-0 bottom-0 h-[2px] bg-teal-500 rounded-full transition-all duration-300 ease-in-out origin-right"
-                          style={{
-                            width: activeTab === tab ? "60%" : "0%",
-                            opacity: activeTab === tab ? 1 : 0,
-                          }}
-                        ></span>
-                      </button>
-                    ))}
+                    {tabs
+                      .filter(
+                        (tab) => !(activeTab === "Report" && tab === "Patients")
+                      )
+                      .map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`relative font-semibold text-lg ${
+                            raleway.className
+                          }  cursor-pointer ${
+                            activeTab === tab ? "text-teal-600" : "text-black"
+                          }`}
+                        >
+                          {tab}
+                          <span
+                            className="absolute right-0 bottom-0 h-[2px] bg-teal-500 rounded-full transition-all duration-300 ease-in-out origin-right"
+                            style={{
+                              width: activeTab === tab ? "60%" : "0%",
+                              opacity: activeTab === tab ? 1 : 0,
+                            }}
+                          ></span>
+                        </button>
+                      ))}
                   </div>
                   <div className="w-2/7 flex flex-row items-end justify-end gap-8">
-                    <Image src={Headset} alt="Support" className="w-6 h-6" />
+                    {/* <Image src={Headset} alt="Support" className="w-6 h-6" /> */}
                     <ArrowRightStartOnRectangleIcon
                       className="w-6 h-6 text-black cursor-pointer"
                       onClick={handlelogout}
@@ -291,7 +311,7 @@ const page = () => {
                       className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
                     >
                       <p className="font-semibold">
-                        {adminame ?? "Admin Name"}
+                        {adminame || "Admin Name"}
                       </p>
                     </div>
                   </div>
@@ -303,7 +323,7 @@ const page = () => {
                 {/* Top Bar with Hamburger */}
                 <div className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-300">
                   <div className="flex items-center gap-2">
-                    <Image src={Logo} alt="XoLabs" className="w-16 h-10" />
+                    <Image src={Logo} alt="XoLabs" className="w-16 h-full" />
                     <span
                       className={`${raleway.className} text-lg font-semibold text-black`}
                     >
@@ -348,10 +368,10 @@ const page = () => {
                     <div
                       className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
                     >
-                      <p className="font-semibold">Admin Name</p>
+                      <p className="font-semibold">{adminame || "Admin Name"}</p>
                     </div>
                     <div className="w-fit flex flex-row gap-8">
-                      <Image src={Headset} alt="Support" className="w-6 h-6" />
+                      {/* <Image src={Headset} alt="Support" className="w-6 h-6" /> */}
                       <ArrowRightStartOnRectangleIcon
                         className="w-6 h-6 text-black"
                         onClick={handlelogout}
@@ -384,6 +404,112 @@ const page = () => {
           </div>
         </div>
       </div>
+
+      {logoutconfirm && (
+        <div
+          className="fixed inset-0 z-40 "
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+          }}
+        >
+          <div
+            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${
+              width < 950 ? "gap-4 w-full" : "w-1/3"
+            }`}
+          >
+            <div
+              className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                width < 1095 ? "flex flex-col gap-4" : ""
+              } max-h-[92vh] rounded-2xl`}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  ${
+                  width < 760 ? "h-fit" : "h-[80%]"
+                } `}
+              >
+                <div
+                  className={`w-full h-full rounded-lg flex flex-col gap-8 ${
+                    width < 760 ? "py-0" : "py-4 px-4"
+                  }`}
+                >
+                  <div className={`w-full flex flex-col gap-1`}>
+                    <div className="flex flex-row justify-center items-center w-full">
+                      <p
+                        className={`${inter.className} text-xl font-bold text-black`}
+                      >
+                        Confirmation
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`w-full flex gap-2 justify-center items-center ${
+                      width >= 1200 ? "flex-col" : "flex-col"
+                    }`}
+                  >
+                    <p
+                      className={`${raleway.className} text-lg font-semibold text-black`}
+                    >
+                      Are you sure need to sign out?
+                    </p>
+                  </div>
+
+                  <div className={`w-full flex flex-row`}>
+                    <div
+                      className={`w-full flex flex-row gap-6 items-center ${
+                        width < 700 ? "justify-between" : "justify-end"
+                      }`}
+                    >
+                      <button
+                        className={`text-black/80 font-normal ${
+                          raleway.className
+                        } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
+                        onClick={() => {
+                          setlogoutconfirm(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
+                          raleway.className
+                        } ${width < 700 ? "w-1/2" : "w-1/2"}`}
+                        onClick={() => {
+                          console.clear(); // ✅ clear console logs
+                          router.replace("/Login");
+                        }}
+                      >
+                        Yes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <style>
+            {`
+                       .inline-scroll::-webkit-scrollbar {
+                         width: 12px;
+                       }
+                       .inline-scroll::-webkit-scrollbar-track {
+                         background: transparent;
+                       }
+                       .inline-scroll::-webkit-scrollbar-thumb {
+                         background-color: #076C40;
+                         border-radius: 8px;
+                       }
+                 
+                       .inline-scroll {
+                         scrollbar-color: #076C40 transparent;
+                       }
+                     `}
+          </style>
+
+        </div>
+      )}
 
       <style>
         {`

@@ -46,6 +46,7 @@ import {
   ChevronLeftIcon,
   ClipboardDocumentCheckIcon,
   XMarkIcon,
+  XCircleIcon,
 } from "@heroicons/react/16/solid";
 import Patientregistration from "./Patientregistration";
 import Doctorregistration from "./Doctorregistration";
@@ -154,15 +155,14 @@ const Doctorlist = ({
     return today.toISOString().split("T")[0]; // format: yyyy-mm-dd
   });
   const [sortOrder, setSortOrder] = useState("low_to_high");
+  const [selectedGender, setSelectedGender] = useState("All");
+  const [ageRange, setAgeRange] = useState({ min: 23, max: 80 });
 
   // Handlers
   const handleClearAll = () => {
-    setSide("left");
-    setOperativePeriod("all");
-    setSubOperativePeriod("all");
-    setCompletionStatus("all");
+    setSelectedGender("All");
     setSortOrder("low_to_high");
-    setSelectedDate(" ");
+    setAgeRange({ min: 23, max: 80 });
     setSearchTerm("");
   };
 
@@ -175,44 +175,49 @@ const Doctorlist = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-  const searchedPatients = useMemo(() => {
-    if (!searchTerm) return patients; // If empty, show all
-    return patients.filter(
-      (patient) =>
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAndSortedPatients = useMemo(() => {
+    return (
+      [...patients]
+        // 1️⃣ Filter by gender
+        .filter((p) => {
+          if (selectedGender === "All") return true;
+          if (!selectedGender) return true; // no filter
+          return p.gender === selectedGender;
+        })
+        // 2️⃣ Filter by age
+        .filter((p) => {
+          const age = Number(p.age);
+          if (ageRange.min && age < ageRange.min) return false;
+          if (ageRange.max && age > ageRange.max) return false;
+          return true;
+        })
+        // 3️⃣ Sort by compliance
+        .sort((a, b) => {
+          const aComp = a.compliance === "NA" ? -1 : Number(a.compliance);
+          const bComp = b.compliance === "NA" ? -1 : Number(b.compliance);
+
+          if (sortOrder === "low_to_high") return aComp - bComp;
+          return bComp - aComp;
+        })
     );
-  }, [patients, searchTerm]);
-
-  const sortedPatients = useMemo(() => {
-    return [...patients].sort((a, b) => {
-      const aComp = a.compliance === "NA" ? -1 : Number(a.compliance);
-      const bComp = b.compliance === "NA" ? -1 : Number(b.compliance);
-
-      if (sortOrder === "low_to_high") {
-        return aComp - bComp;
-      } else {
-        return bComp - aComp;
-      }
-    });
-  }, [patients, sortOrder]);
+  }, [patients, sortOrder, selectedGender, ageRange]);
 
   const displayedPatients = searchTerm
-    ? sortedPatients.filter(
+    ? patients.filter(
         (p) =>
           p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
       )
-    : sortedPatients;
+    : filteredAndSortedPatients;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortedPatients.length]);
+  }, [searchTerm, filteredAndSortedPatients.length]);
 
   // Optional: adjust rowsPerPage if it exceeds array length
   useEffect(() => {
     if (rowsPerPage > displayedPatients.length) {
-      setRowsPerPage(Math.max(5, displayedPatients.length));
+      setRowsPerPage(Math.max(50, displayedPatients.length));
     }
   }, [displayedPatients.length]);
 
@@ -240,7 +245,7 @@ const Doctorlist = ({
     return options;
   };
 
-  const [selectedRole, setSelectedRole] = useState("patient");
+  const [selectedRole, setSelectedRole] = useState("");
 
   const data = [
     { name: "Patients", count: 51 },
@@ -334,6 +339,7 @@ const Doctorlist = ({
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+
   const showWarning = (message) => {
     setAlertMessage(message);
     setShowAlert(true);
@@ -355,6 +361,11 @@ const Doctorlist = ({
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const isDefaultFilter =
+    sortOrder === "low_to_high" &&
+    selectedGender === "All" &&
+    ageRange.min === 23 && ageRange.max === 80;
 
   return (
     <>
@@ -435,6 +446,7 @@ const Doctorlist = ({
                                     : "bg-white text-black"
                                 }
                               `}
+                  title="Click for new patient registration"
                 >
                   ADD NEW PATIENT
                 </p>
@@ -453,6 +465,7 @@ const Doctorlist = ({
                                     : "bg-white text-black"
                                 }
                               `}
+                  title="Click for new doctor registration"
                 >
                   ADD NEW DOCTOR
                 </p>
@@ -467,7 +480,7 @@ const Doctorlist = ({
           }`}
         >
           <div
-            className={`flex flex-col h-full px-2 pt-4 pb-12 gap-5  ${
+            className={`flex flex-col h-full px-2 pt-12 pb-12 gap-5  ${
               width >= 1000 ? "w-full" : "w-full"
             }`}
           >
@@ -478,7 +491,7 @@ const Doctorlist = ({
             </p>
 
             <div
-              className={`w-full flex h-[6%] ${
+              className={`w-full flex h-[6%] py-4 ${
                 width >= 1265 ? "flex-row" : "flex-col gap-4"
               }`}
             >
@@ -488,8 +501,19 @@ const Doctorlist = ({
                 }`}
               >
                 <p
-                  className={`${raleway.className} text-[#2B2B2B] font-semibold text-sm w-1/7 cursor-pointer`}
+                  className={`
+                    ${raleway.className}
+                    text-teal-600
+                    font-semibold
+                    text-sm
+                    w-1/7
+                    cursor-pointer
+                    underline
+                    hover:scale-110
+                    transition
+                  `}
                   onClick={handleClearAll}
+                  title="Click to clear the filter and search"
                 >
                   Clear All
                 </p>
@@ -499,7 +523,12 @@ const Doctorlist = ({
                     type="text"
                     placeholder="Search ..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // allow only letters, numbers, and spaces
+                      const filteredValue = value.replace(/[^a-zA-Z0-9 ]/g, "");
+                      setSearchTerm(filteredValue);
+                    }}
                     className="text-black w-full pl-10 pr-4 py-1 border-2 border-gray-300 rounded-lg"
                   />
                   <svg
@@ -524,8 +553,13 @@ const Doctorlist = ({
                   className={` ${raleway.className} relative`}
                 >
                   <div
-                    className="bg-white rounded-lg p-3 cursor-pointer"
+                    className={`rounded-lg p-3 cursor-pointer transition-all duration-300 ${
+                      isDefaultFilter
+                        ? "bg-white border border-gray-200"
+                        : "bg-teal-100 border-2 border-teal-500 shadow-md"
+                    }`}
                     onClick={() => setDropdownOpen((prev) => !prev)}
+                    title="Click to sort"
                   >
                     <svg
                       width="12"
@@ -549,6 +583,68 @@ const Doctorlist = ({
                         scrollbarColor: "#888 transparent", // Firefox
                       }}
                     >
+
+                      {/* Gender Filter */}
+                      <div className="mb-4">
+                        <p className="font-semibold mb-1">Gender</p>
+                        {["All", "Male", "Female", "Other"].map((gender) => (
+                          <label
+                            key={gender}
+                            className={`inline-flex items-center mr-4 cursor-pointer ${
+                            selectedGender === gender ? "font-bold text-lg" : ""
+                          }`}
+                          >
+                            <input
+                              type="radio"
+                              className="form-radio"
+                              name="gender"
+                              value={gender}
+                              checked={selectedGender === gender}
+                              onChange={() => setSelectedGender(gender)}
+                            />
+                            <span className="ml-2">{gender}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Age Filter */}
+                      <div className="mb-4">
+                        <p className="font-semibold mb-1">Age</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            placeholder="Min"
+                            className={`w-16 border px-2 py-1 rounded text-sm ${ageRange.min > 23 ? "font-bold" : ""}`}
+                            value={ageRange.min}
+                            onChange={(e) => {
+                              // Remove decimals by parsing integer
+                              const intValue = e.target.value
+                                ? parseInt(e.target.value, 10)
+                                : "";
+                              setAgeRange({ ...ageRange, min: intValue });
+                            }}
+                            min={23}
+                            max={80}
+                          />
+                          <span>-</span>
+                          <input
+                            type="number"
+                            placeholder="Max"
+                            className={`w-16 border px-2 py-1 rounded text-sm ${ageRange.max < 80 ? "font-bold" : ""}`}
+                            value={ageRange.max}
+                            onChange={(e) => {
+                              // Remove decimals by parsing integer
+                              const intValue = e.target.value
+                                ? parseInt(e.target.value, 10)
+                                : "";
+                              setAgeRange({ ...ageRange, max: intValue });
+                            }}
+                            min={23}
+                            max={80}
+                          />
+                        </div>
+                      </div>
+
                       {/* Sort */}
                       <div>
                         <p className="font-semibold mb-1">Sort</p>
@@ -558,7 +654,10 @@ const Doctorlist = ({
                         ].map(({ label, value }) => (
                           <label
                             key={value}
-                            className="inline-flex items-center mr-4 cursor-pointer"
+                            className={`inline-flex items-center mr-4 cursor-pointer ${
+                            sortOrder === value ? "font-bold text-lg" : ""
+                          }`}
+                            title="Sort based on overall patients compliance rate"
                           >
                             <input
                               type="radio"
@@ -573,18 +672,12 @@ const Doctorlist = ({
                         ))}
                       </div>
 
-                      <div className="flex justify-between mt-4 pt-2 border-t border-gray-300">
+                      <div className="flex justify-center mt-4 pt-2 border-t border-gray-300">
                         <button
                           onClick={handleClearAll}
                           className="text-sm font-semibold text-red-600 cursor-pointer"
                         >
                           Reset
-                        </button>
-                        <button
-                          onClick={handleApply}
-                          className="text-sm font-semibold text-blue-600 cursor-pointer"
-                        >
-                          Apply
                         </button>
                       </div>
                     </div>
@@ -599,7 +692,11 @@ const Doctorlist = ({
               }`}
             >
               <div
-                className={`${poppins.className} h-[5%] flex flex-row items-center justify-end gap-4 px-4 text-[13px] font-medium text-gray-600`}
+                className={`${
+                  poppins.className
+                } h-[5%] flex flex-row items-center justify-end gap-4 ${
+                  width > 1000 ? "py-4" : "py-10"
+                } px-4 text-[13px] font-medium text-gray-600`}
               >
                 {/* Rows per page */}
                 <span>Records per page:</span>
@@ -610,6 +707,7 @@ const Doctorlist = ({
                     setRowsPerPage(Number(e.target.value));
                     setCurrentPage(1); // Reset to first page
                   }}
+                  title="Click to select no of records to be displayed"
                 >
                   {generatePageOptions(displayedPatients.length).map(
                     (count) => (
@@ -629,6 +727,7 @@ const Doctorlist = ({
                     onClick={() =>
                       setCurrentPage((prev) => Math.max(prev - 1, 1))
                     }
+                    title="Move to previous page"
                   >
                     <svg
                       className="w-4 h-4 text-gray-600"
@@ -658,6 +757,7 @@ const Doctorlist = ({
                     onClick={() =>
                       setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                     }
+                    title="Move to next page"
                   >
                     <svg
                       className="w-4 h-4 text-gray-600"
@@ -678,14 +778,14 @@ const Doctorlist = ({
 
               <div
                 className={`w-full h-[95%] flex-1 px-4 pt-2 inline-scroll ${
-                  width >= 1000 ? "overflow-y-scroll" : "overflow-y-auto"
+                  width >= 1000 ? "overflow-y-auto" : "overflow-y-auto"
                 }`}
                 style={{
                   display: "grid",
-                  gridTemplateColumns:
-                    width >= 1000
-                      ? "repeat(auto-fit, minmax(200px, 1fr))"
-                      : "repeat(auto-fit, minmax(200px, 1fr))",
+                  gridTemplateColumns: loading
+                    ? "repeat(auto-fit, minmax(220px, 1fr))"
+                    : "repeat(auto-fit, 260px)",
+                  justifyContent: width > 620 ? "start" : "center", // align cards to left if fewer
                   gap: "1.5rem",
                 }}
               >
@@ -721,7 +821,7 @@ const Doctorlist = ({
                   paginatedPatients.map((patient, index) => (
                     <div
                       key={index}
-                      className="w-full h-[200px]  bg-white p-4 flex flex-col justify-between gap-2 rounded-md"
+                      className="w-full h-[260px]  bg-white p-4 flex flex-col justify-between gap-2 rounded-md"
                       style={{ minWidth: 0 }} // prevent overflow
                     >
                       {/* LEFT - Avatar + Name + Age */}
@@ -736,6 +836,7 @@ const Doctorlist = ({
                             setshowprof(true);
                             setshowprofpat(patient);
                           }}
+                          title="Edit profile picture"
                         />
                         <div className="flex flex-col gap-3">
                           <p
@@ -775,7 +876,15 @@ const Doctorlist = ({
 
                         {/* Progress Bar with Hover */}
                         {patient.compliance === "NA" ? (
-                          <div className="w-1/2 flex flex-col items-end relative group">
+                          <div
+                            className="w-1/2 flex flex-col items-end relative group"
+                            title="Overall patient's compliance"
+                          >
+                            <div
+                              className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}
+                            >
+                              No patients assigned
+                            </div>
                             <Image
                               src={Error}
                               alt="Not assigned"
@@ -796,7 +905,10 @@ const Doctorlist = ({
                             </div>
                           </div>
                         ) : (
-                          <div className="w-1/2 flex flex-col items-center relative group">
+                          <div
+                            className="w-1/2 flex flex-col items-center relative group "
+                            title="Overall patient's compliance"
+                          >
                             {/* Hover Percentage Text */}
                             <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
                               {patient.compliance || 0}%
@@ -872,13 +984,11 @@ const Doctorlist = ({
                       <div
                         className={`flex flex-row gap-4 items-center justify-center`}
                       >
-                        <Image
-                          src={CloseIcon}
-                          alt="Close"
-                          className={`w-fit h-6 cursor-pointer`}
+                        <XCircleIcon
+                          className="w-5 h-5 cursor-pointer text-red-500"
                           onClick={() => {
                             setshowprof(false);
-                            if(reloadreq){
+                            if (reloadreq) {
                               window.location.reload();
                             }
                           }}
@@ -906,6 +1016,7 @@ const Doctorlist = ({
                               className="w-40 h-40 cursor-pointer"
                               onClick={() => fileInputRef.current.click()}
                               style={{ position: "relative" }}
+                              title="Edit Profile Picture"
                             >
                               {isBlobUrl ? (
                                 // Plain <img> for blob URLs
@@ -1008,12 +1119,18 @@ const Doctorlist = ({
 
       <Patientregistration
         isOpenacc={isOpenaccpat}
-        onCloseacc={() => setIsOpenaccpat(false)}
+        onCloseacc={() => {
+          setIsOpenaccpat(false);
+          setSelectedRole("");
+        }}
       />
 
       <Doctorregistration
         isOpenacc={isOpenaccdoc}
-        onCloseacc={() => setIsOpenaccdoc(false)}
+        onCloseacc={() => {
+          setIsOpenaccdoc(false);
+          setSelectedRole("");
+        }}
       />
     </>
   );

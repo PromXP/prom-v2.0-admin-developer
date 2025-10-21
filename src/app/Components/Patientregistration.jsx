@@ -10,9 +10,26 @@ import { API_URL } from "../libs/global";
 import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
-import UploadProfile from "@/app/Assets/uploadprofilepic.png";
+import UploadProfile from "@/app/Assets/profilepicupload.png";
 import ExpandIcon from "@/app/Assets/expand.png";
 import ShrinkIcon from "@/app/Assets/shrink.png";
+
+import {
+  ChevronRightIcon,
+  ArrowUpRightIcon,
+  MagnifyingGlassIcon,
+  CalendarIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  PencilIcon,
+  CheckCircleIcon,
+  PencilSquareIcon,
+  ChevronLeftIcon,
+  ClipboardDocumentCheckIcon,
+  XMarkIcon,
+  XCircleIcon,
+  TrashIcon,
+} from "@heroicons/react/16/solid";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -75,17 +92,40 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
   const [heightbmi, setHeightbmi] = useState("");
   const [weight, setWeight] = useState("");
   const [bmi, setBmi] = useState("");
-  const [selectedGender, setSelectedGender] = useState("Male"); // "female" | "male" | "other"
-  const [selectedOptiondrop, setSelectedOptiondrop] = useState("A+");
+  const [selectedGender, setSelectedGender] = useState(""); // "female" | "male" | "other"
+  const [selectedOptiondrop, setSelectedOptiondrop] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [surgerydate, setsurgeryDate] = useState("");
   const [surgeryname, setsurgeryname] = useState("");
+
+  const refs = {
+    firstName: useRef(null),
+    lastName: useRef(null),
+    uhid: useRef(null),
+    selectedOptiondrop: useRef(null),
+    selectedGender: useRef(null),
+    selectedDate: useRef(null),
+    address: useRef(null),
+    phone: useRef(null),
+    email: useRef(null),
+    heightbmi: useRef(null),
+    weight: useRef(null),
+    selectedIDs: useRef(null),
+    surgerydate: useRef(null),
+    leftKnee: useRef(null),
+    rightKnee: useRef(null),
+    selectedFunding: useRef(null),
+  };
+  const [errorField, setErrorField] = useState(null);
+
 
   const dateInputRef = useRef(null);
 
   const openDatePicker = () => {
     dateInputRef.current?.showPicker();
   };
+
+  const calendarRef = useRef(null);
 
   const handleDateChange = (e) => {
     const dateValue = e.target.value;
@@ -121,60 +161,38 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
   };
 
   const handleManualDateChange = (e) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+    let value = e.target.value;
 
-    if (value.length >= 3 && value.length <= 4) {
-      value = value.slice(0, 2) + "-" + value.slice(2);
-    } else if (value.length > 4 && value.length <= 8) {
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    } else if (value.length > 8) {
-      value = value.slice(0, 8);
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    }
+    // Allow only digits and dashes
+    value = value.replace(/[^0-9-]/g, "");
 
-    // Show raw value until full date entered
+    // Auto-insert dashes only when needed (optional)
+    if (/^\d{4}$/.test(value)) value += "-";
+    else if (/^\d{4}-\d{2}$/.test(value)) value += "-";
+
     setSelectedDate(value);
 
-    if (value.length === 10) {
-      const [dayStr, monthStr, yearStr] = value.split("-");
-      const day = parseInt(dayStr, 10);
-      const month = parseInt(monthStr, 10);
-      const year = parseInt(yearStr, 10);
+    // Validate only when full length reached
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [yearStr, monthStr, dayStr] = value.split("-");
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr);
+      const day = parseInt(dayStr);
 
       const today = new Date();
-      const currentYear = today.getFullYear();
+      today.setHours(0, 0, 0, 0);
 
-      // Basic validations
-      if (
-        day < 1 ||
-        day > 31 ||
-        month < 1 ||
-        month > 12 ||
-        year >= currentYear
-      ) {
-        showWarning("Please enter a valid date of birth.");
-        setSelectedDate("");
-        return;
-      }
-
-      // Check valid real date
       const manualDate = new Date(`${year}-${month}-${day}`);
 
       if (
-        manualDate.getDate() !== day ||
+        manualDate.getFullYear() !== year ||
         manualDate.getMonth() + 1 !== month ||
-        manualDate.getFullYear() !== year
+        manualDate.getDate() !== day
       ) {
         showWarning("Invalid date combination. Please enter a correct date.");
         setSelectedDate("");
         return;
       }
-
-      // Check if future or today
-      today.setHours(0, 0, 0, 0);
-      manualDate.setHours(0, 0, 0, 0);
 
       if (manualDate >= today) {
         showWarning("Birth date cannot be today or a future date.");
@@ -182,85 +200,117 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         return;
       }
 
-      // ✅ Final format as yyyy-mm-dd
-      const formattedDate = `${manualDate.getFullYear()}-${String(
-        manualDate.getMonth() + 1
-      ).padStart(2, "0")}-${String(manualDate.getDate()).padStart(2, "0")}`;
-
-      setSelectedDate(formattedDate);
+      // ✅ Keep final format yyyy-mm-dd
+      setSelectedDate(`${yearStr}-${monthStr}-${dayStr}`);
+      // 🔄 Sync hidden calendar too
+      if (calendarRef.current) {
+        calendarRef.current.value = `${yearStr}-${monthStr}-${dayStr}`;
+      }
     }
   };
 
-  const handleManualsurgeryDateChange = (e) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+  // 📅 When user picks from calendar
+  const handleCalendarChange = (e) => {
+    const value = e.target.value; // yyyy-mm-dd
+    if (!value) return;
 
-    if (value.length >= 3 && value.length <= 4) {
-      value = value.slice(0, 2) + "-" + value.slice(2);
-    } else if (value.length > 4 && value.length <= 8) {
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    } else if (value.length > 8) {
-      value = value.slice(0, 8);
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+    const [year, month, day] = value.split("-");
+    const selectedDateObj = new Date(`${year}-${month}-${day}`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    selectedDateObj.setHours(0, 0, 0, 0);
+
+    // 🚫 Prevent today or future
+    if (selectedDateObj >= today) {
+      showWarning("Pleae select a valid birth date");
+      setSelectedDate("");
+      e.target.value = ""; // clear calendar value
+      return;
     }
 
-    // Until full date entered, show raw value
+    // ✅ Keep internal format as yyyy-mm-dd
+    const formatted = `${year}-${month}-${day}`;
+    setSelectedDate(formatted);
+
+    // 🔄 Optional: if you want to display DD-MM-YYYY in the text box
+    // while storing YYYY-MM-DD internally
+    const display = `${day}-${month}-${year}`;
+    // setVisibleDate(display);
+
+    // Also update the hidden input for next open
+    if (calendarRef.current) calendarRef.current.value = formatted;
+  };
+
+  const calendarRefsurg = useRef();
+
+  // 📝 Manual input handler
+  const handleManualSurgeryDateChange = (e) => {
+    let value = e.target.value;
+
+    // Allow only digits and dashes
+    value = value.replace(/[^0-9-]/g, "");
+
+    // Auto-insert dashes while typing
+    // Auto-insert dashes only when needed (optional)
+    if (/^\d{4}$/.test(value)) value += "-";
+    else if (/^\d{4}-\d{2}$/.test(value)) value += "-";
+
     setsurgeryDate(value);
 
-    if (value.length === 10) {
-      const [dayStr, monthStr, yearStr] = value.split("-");
+    // Validate only when full length reached
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [yearStr, monthStr, dayStr] = value.split("-");
       const day = parseInt(dayStr, 10);
       const month = parseInt(monthStr, 10);
       const year = parseInt(yearStr, 10);
 
       const today = new Date();
-      const currentYear = today.getFullYear();
+      today.setHours(0, 0, 0, 0);
 
-      // Basic validations
-      if (day < 1 || day > 31 || month < 1 || month > 12) {
-        showWarning("Please enter a valid surgery date");
-        setS("");
-        return;
-      }
-
-      // Check valid real date
       const manualDate = new Date(`${year}-${month}-${day}`);
+
+      // Check if valid calendar date
       if (
-        manualDate.getDate() !== day ||
+        manualDate.getFullYear() !== year ||
         manualDate.getMonth() + 1 !== month ||
-        manualDate.getFullYear() !== year
+        manualDate.getDate() !== day
       ) {
         showWarning("Invalid date combination. Please enter a correct date.");
         setsurgeryDate("");
         return;
       }
 
-      // 🚨 Past date check
-      // if (manualDate < today) {
-      //   showWarning("Past dates are not allowed");
-      //   setsurgeryDate("");
-      //   return;
-      // }
+      // // Block future dates (optional)
+      if (manualDate < today) {
+        showWarning("Past date is selected");
 
-      // Check if future or today
-      today.setHours(0, 0, 0, 0);
-      manualDate.setHours(0, 0, 0, 0);
+      }
 
-      // If all valid, format as "dd Mmm yyyy"
-      const formattedDate = manualDate.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "numeric",
-        year: "numeric",
-      });
-
-      // Final validated date components
+      // ✅ Keep final format yyyy-mm-dd
       const isoDate = `${year.toString().padStart(4, "0")}-${month
         .toString()
         .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 
-      setsurgeryDate(isoDate); // This avoids time zone issues
+      setsurgeryDate(isoDate);
+
+      // 🔄 Sync hidden calendar
+      if (calendarRefsurg.current)
+        calendarRefsurg.current.value = `${yearStr}-${monthStr}-${dayStr}`;
     }
+  };
+
+  // 📅 Calendar picker handler
+  const handleCalendarChangesurg = (e) => {
+    const value = e.target.value; // yyyy-mm-dd
+    if (!value) return;
+
+    const today = new Date().toISOString().split("T")[0];
+    if (value < today) {
+      showWarning("Past date is selected");
+
+    }
+
+    setsurgeryDate(value); // sync manual input
   };
 
   const idOptions = ["PASSPORT", "PAN", "AADHAAR", "ABHA"];
@@ -268,19 +318,44 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     idOptions.reduce((acc, id) => ({ ...acc, [id]: "NA" }), {})
   );
 
-  const handleCheckboxChange = (id) => {
-    setSelectedIDs((prev) => {
-      const updated = { ...prev };
-      // toggle: NA <-> ""
-      updated[id] = prev[id] === "NA" ? "" : "NA";
-      return updated;
-    });
+  const idConfig = {
+    PASSPORT: { maxLength: 8, pattern: /^[A-Z][0-9]{7}$/i },
+    AADHAAR: { maxLength: 12, pattern: /^\d{12}$/ },
+    PAN: { maxLength: 10, pattern: /^[A-Z]{5}[0-9]{4}[A-Z]$/i },
+    ABHA: { maxLength: 14, pattern: /^\d{14}$/ },
   };
 
+  const [idErrors, setIdErrors] = useState(
+    idOptions.reduce((acc, id) => ({ ...acc, [id]: "" }), {})
+  );
+
+  const handleBlur = (id) => {
+    const value = selectedIDs[id].trim();
+
+    if (!value) {
+      // Empty → treat as NA, no error
+      setIdErrors((prev) => ({ ...prev, [id]: "NA" }));
+      return;
+    }
+
+    if (!idConfig[id].pattern.test(value)) {
+      // Invalid → show error and reset the input
+      setIdErrors((prev) => ({
+        ...prev,
+        [id]: `${id} format is invalid`,
+      }));
+      setSelectedIDs((prev) => ({ ...prev, [id]: "NA" }));
+    } else {
+      // Valid → clear error
+      setIdErrors((prev) => ({ ...prev, [id]: "" }));
+    }
+  };
+
+  // Handle text change
   const handleInputChange = (id, value) => {
     setSelectedIDs((prev) => ({
       ...prev,
-      [id]: value,
+      [id]: value.trim() === "" ? "NA" : value, // store "NA" if empty
     }));
   };
 
@@ -376,7 +451,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     setUhid("");
     setSelectedDate("");
     setSelectedGender("");
-    setSelectedOptiondrop("NN");
+    setSelectedOptiondrop("");
     setPhone("");
     setEmail("");
     setHeightbmi("");
@@ -387,7 +462,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     setsurgeryname("");
     setSelectedKnees([]);
     setalterPhone("");
-    setSelectedIDs({});
+    setSelectedIDs(idOptions.reduce((acc, id) => ({ ...acc, [id]: "NA" }), {}));
     setSelectedFunding("");
     setOtherFunding("");
   };
@@ -430,20 +505,21 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     }
     const requiredFields = [
       { value: adminUhid, message: "Admin UHID is missing" },
-      { value: uhid, message: "Patient UHID is required" },
       { value: firstName, message: "First Name is required" },
       { value: lastName, message: "Last Name is required" },
-      { value: email, message: "Email is required" },
-      { value: phone, message: "Phone number is required" },
-      { value: selectedDate, message: "Date of Birth is required" },
+      { value: uhid, message: "Patient UHID is required" },
+      { value: selectedOptiondrop, message: "Blood Group is required" },
       { value: selectedGender, message: "Gender is required" },
+      { value: selectedDate, message: "Date of Birth is required" },
       { value: address, message: "Address is required" },
+      { value: phone, message: "Phone number is required" },
+      { value: email, message: "Email is required" },
       { value: heightbmi, message: "Height is required" },
       { value: weight, message: "Weight is required" },
-      { value: selectedFunding, message: "Operation funding is required" },
       { value: selectedIDs, message: "ID Proof is required" },
-      { value: selectedKnees, message: "Patient current status is required" },
       { value: surgerydate, message: "Surgery date is required" },
+      { value: selectedKnees, message: "Patient side is required" },
+      { value: selectedFunding, message: "Operation funding is required" },
     ];
 
     // ✅ Check one by one
@@ -453,20 +529,82 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         (Array.isArray(field.value) && field.value.length === 0)
       ) {
         showWarning(field.message);
+        // 🔽 Scroll to the corresponding field smoothly
+    const fieldKey = field.message
+      .toLowerCase()
+      .replace(/[^a-z]/g, ""); // crude mapping, we’ll fix below
+
+    // Find the actual ref key by mapping message → ref name
+    const messageToRef = {
+      "first name is required": refs.firstName,
+      "last name is required": refs.lastName,
+      "patient uhid is required": refs.uhid,
+      "blood group is required": refs.selectedOptiondrop,
+      "gender is required": refs.selectedGender,
+      "date of birth is required": refs.selectedDate,
+      "address is required": refs.address,
+      "phone number is required": refs.phone,
+      "email is required": refs.email,
+      "height is required": refs.heightbmi,
+      "weight is required": refs.weight,
+      "id proof is required": refs.selectedIDs,
+      "surgery date is required": refs.surgerydate,
+      "operation funding is required": refs.selectedFunding,
+    };
+
+    let targetRef = messageToRef[field.message.toLowerCase()];
+    // ✅ Special case for patient side (Left/Right Knee)
+      if (field.message.toLowerCase().includes("patient side")) {
+        // Try to scroll to left knee checkbox
+        targetRef = refs.leftKnee || refs.rightKnee;
+      }
+    if (targetRef?.current) {
+      targetRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      targetRef.current.focus?.();
+      // Highlight error visually
+      setErrorField(targetRef.current);
+      targetRef.current.classList.add("ring-2", "ring-red-500");
+
+      // Remove highlight after 2s
+      setTimeout(() => {
+        targetRef.current.classList.remove("ring-2", "ring-red-500");
+        setErrorField(null);
+      }, 2000);
+    }
         return;
       }
     }
 
     // ✅ Special checks
-    if (phone.length !== 10) {
-      showWarning("Phone number must be 10 digits");
-      return;
-    }
+   if (phone.length !== 10) {
+    showWarning("Phone number must be 10 digits");
+    refs.phone?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    refs.phone?.current?.classList.add("ring-2", "ring-red-500");
+    setTimeout(() => refs.phone?.current?.classList.remove("ring-2", "ring-red-500"), 2000);
+    return;
+  }
 
-    if (alterphone.length !== 10) {
+    if (alterphone && alterphone.length !== 10) {
       showWarning("Alternate phone number must be 10 digits");
       return;
     }
+
+    if (alterphone && alterphone === phone) {
+      showWarning("Phone and Alternate phone should not be same");
+      return;
+    }
+
+    const anyFilled = Object.values(selectedIDs).some((val) => val !== "NA");
+  if (!anyFilled) {
+    showWarning("Please fill at least one ID Proof");
+    refs.selectedIDs?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    refs.selectedIDs?.current?.classList.add("ring-2", "ring-red-500");
+    setTimeout(() => refs.selectedIDs?.current?.classList.remove("ring-2", "ring-red-500"), 2000);
+    return;
+  }
 
     // ✅ Build payload after validation
     const payload = {
@@ -483,7 +621,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
         uhid: uhid,
         email: email,
         phone_number: phone,
-        alternatenumber: alterphone || "",
+        alternatenumber: alterphone || "NA",
         address: address,
         doctor_uhid_left: "NA",
         doctor_uhid_right: "NA",
@@ -523,11 +661,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       if (profileImage) {
         handleUpload();
       }
-    } catch (error) {
-      // console.error("❌ Error creating patient:", error);
-      showWarning("Failed to create patient" + error);
-    } finally {
       window.location.reload();
+    } catch (error) {
+      // console.error("❌ Error creating patient:", error.response.data);
+      showWarning(error.response.data.detail.replace(" in MongoDB", ""));
     }
   };
 
@@ -557,6 +694,23 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       showWarning("Upload failed.");
     }
   };
+
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        clearAllFields();
+        setexpand(false);
+        onCloseacc();
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
 
   if (!isOpenacc || !mounted) return null;
 
@@ -617,11 +771,13 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       className={`w-12 h-6 cursor-pointer`}
                     />
                   )}
-                  <Image
-                    src={CloseIcon}
-                    alt="Close"
-                    className={`w-fit h-6 cursor-pointer`}
-                    onClick={() => onCloseacc()}
+                  <XCircleIcon
+                    className="w-fit h-7 text-red-600  cursor-pointer"
+                    onClick={() => {
+                      clearAllFields();
+                      setexpand(false);
+                      onCloseacc();
+                    }}
                   />
                 </div>
               </div>
@@ -644,9 +800,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      First Name *
+                      First Name <span className="text-red-500">*</span>
                     </p>
                     <input
+                    ref={refs.firstName}
                       type="text"
                       className={`
                         w-full
@@ -660,7 +817,19 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         ${inter.className}
                       `}
                       value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      onChange={(e) => {
+                        // Remove non-alphabetic characters
+                        let value = e.target.value.replace(/[^a-zA-Z]/g, "");
+
+                        // Capitalize the first letter, lowercase the rest
+                        if (value.length > 0) {
+                          value =
+                            value.charAt(0).toUpperCase() +
+                            value.slice(1).toLowerCase();
+                        }
+
+                        setFirstName(value);
+                      }}
                     />
                   </div>
                   <div
@@ -671,9 +840,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={` ${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Last Name *
+                      Last Name <span className="text-red-500">*</span>
                     </p>
                     <input
+                      ref={refs.lastName}
                       type="text"
                       className={`
                         w-full
@@ -687,7 +857,12 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         ${inter.className}
                       `}
                       value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      onChange={(e) => {
+                        // Allow only letters and spaces
+                        let value = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+
+                        setLastName(value);
+                      }}
                     />
                   </div>
                 </div>
@@ -700,9 +875,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                   <p
                     className={` ${outfit.className} font-normal text-base text-black/80`}
                   >
-                    UHID *
+                    UHID <span className="text-red-500">*</span>
                   </p>
                   <input
+                    ref={refs.uhid}
                     type="text"
                     className={`
                       w-full
@@ -715,8 +891,14 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       text-lg
                       ${inter.className}
                     `}
+                    maxLength={20}
                     value={uhid}
-                    onChange={(e) => setUhid(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow only letters, numbers, and hyphens
+                      const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
+                      setUhid(filtered);
+                    }}
                   />
                 </div>
               </div>
@@ -745,9 +927,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       <p
                         className={`${outfit.className} font-normal text-base text-black/80`}
                       >
-                        Blood Group
+                        Blood Group <span className="text-red-500">*</span>
                       </p>
                       <select
+                        ref={refs.selectedOptiondrop}
                         className={`
                       w-full
                       bg-transparent
@@ -764,7 +947,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         onChange={(e) => setSelectedOptiondrop(e.target.value)}
                       >
                         <option value="" disabled>
-                          Select Blood Group
+                          Select
                         </option>
                         {optionsdrop.map((option, idx) => (
                           <option key={idx} value={option}>
@@ -783,9 +966,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       <p
                         className={`${outfit.className} font-normal text-base text-black/80`}
                       >
-                        Gender *
+                        Gender <span className="text-red-500">*</span>
                       </p>
                       <select
+                        ref={refs.selectedGender}
                         className={`
                       w-full
                       bg-transparent
@@ -801,6 +985,9 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         value={selectedGender}
                         onChange={(e) => setSelectedGender(e.target.value)}
                       >
+                        <option value="" disabled>
+                          Select
+                        </option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
                         <option value="other">Other</option>
@@ -816,27 +1003,51 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       <p
                         className={`${outfit.className} font-normal text-base text-black/80`}
                       >
-                        Date of Birth *
+                        Date of Birth <span className="text-red-500">*</span>
                       </p>
-                      <input
-                        type="text"
-                        className={`
-                      w-full
-                      bg-transparent
-                      border-b-2
-                      border-black
-                      outline-none
-                      text-black/80
-                      py-1.5
-                      font-medium
-                      text-base
-                      ${inter.className}
-                    `}
-                        placeholder="DD-MM-YYYY"
-                        value={selectedDate}
-                        onChange={handleManualDateChange}
-                        maxLength={10}
-                      />
+                      <div className="relative w-full">
+                        {/* ✏️ Manual text input */}
+                        <input
+                          ref={refs.selectedDate}
+                          type="text"
+                          className={`
+                            w-full
+                            bg-transparent
+                            border-b-2
+                            border-black
+                            outline-none
+                            text-black/80
+                            py-1.5
+                            font-medium
+                            text-base
+                            pr-10
+                          `}
+                          placeholder="YYYY-MM-DD"
+                          value={selectedDate}
+                          onChange={handleManualDateChange}
+                          maxLength={10}
+                        />
+
+                        {/* 📅 Hidden date picker (covers icon only) */}
+                        <input
+                          ref={calendarRef}
+                          type="date"
+                          className="absolute top-0 right-0 opacity-0 cursor-pointer w-8 h-8"
+                          onChange={handleCalendarChange}
+                          min="1900-01-01"
+                          max={`${new Date().getFullYear() - 1}-12-31`} // 🔒 blocks current and future years
+                        />
+
+                        {/* 📅 Visible calendar icon */}
+                        <button
+                          type="button"
+                          onClick={() => calendarRef.current?.showPicker?.()}
+                          className="absolute right-2 top-1.5 text-gray-600 hover:text-black cursor-pointer"
+                          title="Pick from calendar"
+                        >
+                          📅
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -844,9 +1055,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Phone Number *
+                      Phone Number <span className="text-red-500">*</span>
                     </p>
                     <input
+                      ref={refs.phone}
                       type="tel"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -867,6 +1079,12 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         const value = e.target.value.replace(/\D/g, ""); // keep only digits
                         setPhone(value);
                       }}
+                      onBlur={() => {
+                        if (phone && phone.length !== 10) {
+                          showWarning("Phone number must be 10 digits");
+                          return;
+                        }
+                      }}
                     />
                   </div>
 
@@ -877,6 +1095,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       Alternate Phone Number
                     </p>
                     <input
+                      ref={refs.alterphone}
                       type="tel"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -897,6 +1116,21 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         const value = e.target.value.replace(/\D/g, ""); // keep only digits
                         setalterPhone(value);
                       }}
+                      onBlur={() => {
+                        if (alterphone && alterphone.length !== 10) {
+                          showWarning(
+                            "Alternate phone number must be 10 digits"
+                          );
+                          return;
+                        }
+
+                        if (alterphone && alterphone === phone) {
+                          showWarning(
+                            "Phone and Alternate phone should not be same"
+                          );
+                          return;
+                        }
+                      }}
                     />
                   </div>
 
@@ -904,9 +1138,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Email *
+                      Email <span className="text-red-500">*</span>
                     </p>
                     <input
+                      ref={refs.email}
                       type="email"
                       className={`
                       w-full
@@ -950,9 +1185,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       <p
                         className={`${outfit.className} font-normal text-base text-black/80`}
                       >
-                        Address *
+                        Address <span className="text-red-500">*</span>
                       </p>
                       <textarea
+                        ref={refs.address}
                         className={`
                           w-full
                           bg-[#D9D9D9]/20
@@ -962,6 +1198,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                           font-medium
                           text-base
                           resize-none
+                          border-black border-2 rounded-md
                           ${inter.className}
                         `}
                         rows={8}
@@ -970,12 +1207,25 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       />
                     </div>
                     <div
-                      className={`flex items-center justify-center ${
+                      className={`flex flex-col items-center  ${
                         width < 700 ? "w-full" : "w-3/7"
-                      }`}
+                      } ${isBlobUrl ? "justify-between" : "justify-center"}`}
                     >
+                      {isBlobUrl && (
+                        <div className="w-full flex justify-end">
+                          <TrashIcon
+                            className={`w-5 h-5 text-red-600 text-right cursor-pointer`}
+                            onClick={() => {
+                              setPreviewUrl(null);
+                              setProfileImage(null);
+                            }}
+                            title="Remove Profile Picture"
+                          />
+                        </div>
+                      )}
+
                       <div
-                        className="w-[256px] h-[256px] cursor-pointer"
+                        className="w-[200px] h-[200px] cursor-pointer"
                         onClick={() => fileInputRef.current.click()}
                         style={{ position: "relative" }}
                       >
@@ -1000,6 +1250,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                             layout="fill"
                             objectFit="cover"
                             className="rounded border w-full h-full"
+                            title="Upload Profile Picture"
                           />
                         )}
 
@@ -1021,9 +1272,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         <p
                           className={`${outfit.className} font-normal text-base text-black/80`}
                         >
-                          Height (cm) *
+                          Height (cm) <span className="text-red-500">*</span>
                         </p>
                         <input
+                          ref={refs.heightbmi}
                           type="number"
                           className={`
                           w-full
@@ -1037,17 +1289,36 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                           ${inter.className}
                         `}
                           value={heightbmi}
-                          onChange={(e) => setHeightbmi(e.target.value)}
-                          min={0}
+                          onChange={(e) => {
+                            let value = e.target.value;
+
+                            // Allow typing freely (even temporarily out of range)
+                            setHeightbmi(value);
+
+                            // Optionally, enforce range after user finishes typing (blur event)
+                          }}
+                          onBlur={(e) => {
+                            let value = Number(e.target.value);
+                            if (value < 50) {
+                              setHeightbmi("");
+                              showWarning("Enter valid height");
+                            } else if (value > 300) {
+                              showWarning("Enter valid height");
+                              setHeightbmi("");
+                            }
+                          }}
+                          min={50}
+                          max={300}
                         />
                       </div>
                       <div className="w-1/3 flex flex-col gap-2.5 justify-between">
                         <p
                           className={`${outfit.className} font-normal text-base text-black/80`}
                         >
-                          Weight (kg) *
+                          Weight (kg) <span className="text-red-500">*</span>
                         </p>
                         <input
+                          ref={refs.weight}
                           type="number"
                           className={`
                           w-full
@@ -1062,7 +1333,18 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         `}
                           value={weight}
                           onChange={(e) => setWeight(e.target.value)}
-                          min={0}
+                          onBlur={(e) => {
+                            const value = Number(e.target.value);
+                            if (isNaN(value) || value < 2) {
+                              setWeight(""); // reset if negative or blank
+                              showWarning("Enter valid weight");
+                            } else if (value > 635) {
+                              setWeight(""); // cap at world's max human weight
+                              showWarning("Enter valid weight");
+                            }
+                          }}
+                          min={2}
+                          max={635}
                         />
                       </div>
                       <div className="w-1/3 flex flex-col gap-2 justify-between">
@@ -1096,51 +1378,60 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                 <p
                   className={`${outfit.className} font-normal text-base text-black/80`}
                 >
-                  ID PROOF *
+                  ID PROOF (atleast 1 id proof){" "}
+                  <span className="text-red-500">*</span>
                 </p>
-                <div className="flex flex-wrap gap-8">
-                  {idOptions.map((id) => (
-                    <label
-                      key={id}
-                      className="flex items-center gap-2 text-black/80 text-sm cursor-pointer"
-                    >
+                {idOptions.map((id) => {
+                  const config = idConfig[id] || {};
+                  return (
+                    <div key={id} className="flex flex-col gap-1">
+                      <label
+                        className={`${outfit.className} text-base text-black/80`}
+                      >
+                        {id} Number
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={selectedIDs[id] !== "NA"}
-                        onChange={() => handleCheckboxChange(id)}
-                        className="accent-[#319B8F]"
+                        ref={refs.selectedIDs}
+                        type="text"
+                        className={`
+                        w-full
+                        bg-transparent
+                        border-b-2
+                        border-black
+                        outline-none
+                        text-black
+                        font-medium
+                        text-lg
+                        ${inter.className}
+                      `}
+                        value={selectedIDs[id] === "NA" ? "" : selectedIDs[id]}
+                        onChange={(e) => {
+                          let value = e.target.value.toUpperCase();
+
+                          // Allow only characters that could lead to a valid final ID
+                          if (id === "PASSPORT")
+                            value = value.replace(/[^A-Z0-9]/gi, "");
+                          else if (id === "PAN")
+                            value = value.replace(/[^A-Z0-9]/gi, "");
+                          else if (id === "AADHAAR" || id === "ABHA")
+                            value = value.replace(/[^0-9]/g, "");
+
+                          // Limit to max length
+                          value = value.slice(0, config.maxLength);
+
+                          handleInputChange(id, value);
+                        }}
+                        onBlur={() => handleBlur(id)}
+                        maxLength={config.maxLength || undefined}
                       />
-                      {id}
-                    </label>
-                  ))}
-                </div>
-                {/* Optional: Show input for selected IDs */}
-                {Object.keys(selectedIDs).map((id) => (
-                  <div key={id} className="mt-2 flex flex-col gap-1">
-                    <label
-                      className={`${outfit.className} text-base text-black/80`}
-                    >
-                      {id} Number
-                    </label>
-                    <input
-                      type="text"
-                      className={`
-                      w-full
-                      bg-transparent
-                      border-b-2
-                      border-black
-                      outline-none
-                      text-black
-                      font-medium
-                      text-lg
-                      ${inter.className}
-                    `}
-                      value={selectedIDs[id] === "NA" ? "" : selectedIDs[id]}
-                      disabled={selectedIDs[id] === "NA"}
-                      onChange={(e) => handleInputChange(id, e.target.value)}
-                    />
-                  </div>
-                ))}
+                      {idErrors[id] && (
+                        <span className="text-red-500 text-sm">
+                          {idErrors[id]}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className={`w-full flex flex-col gap-12`}>
@@ -1162,7 +1453,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Surgery Name *
+                      Surgery Name
                     </p>
                     <input
                       type="text"
@@ -1190,9 +1481,9 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Surgery Date *
+                      Surgery Date <span className="text-red-500">*</span>
                     </p>
-                    <input
+                    {/* <input
                       type="text"
                       className={`
                         w-full
@@ -1209,7 +1500,50 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       value={surgerydate}
                       onChange={handleManualsurgeryDateChange}
                       maxLength={10}
-                    />
+                    /> */}
+
+                    <div className="relative w-full">
+                      {/* ✏️ Manual text input */}
+                      <input
+                        ref={refs.surgerydate}
+                        type="text"
+                        className={`
+                            w-full
+                            bg-transparent
+                            border-b-2
+                            border-black
+                            outline-none
+                            text-black/80
+                            py-1.5
+                            font-medium
+                            text-base
+                            pr-10
+                          `}
+                        placeholder="YYYY-MM-DD"
+                        value={surgerydate}
+                        onChange={handleManualSurgeryDateChange}
+                        maxLength={10}
+                      />
+
+                      {/* 📅 Hidden date picker (covers icon only) */}
+                      <input
+                        ref={calendarRefsurg}
+                        type="date"
+                        className="absolute top-0 right-0 opacity-0 cursor-pointer w-8 h-8"
+                        onChange={handleCalendarChangesurg}
+                        min="1900-01-01"
+                      />
+
+                      {/* 📅 Visible calendar icon */}
+                      <button
+                        type="button"
+                        onClick={() => calendarRefsurg.current?.showPicker?.()}
+                        className="absolute right-2 top-1.5 text-gray-600 hover:text-black cursor-pointer"
+                        title="Pick from calendar"
+                      >
+                        📅
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div
@@ -1225,13 +1559,14 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Side *
+                      Side <span className="text-red-500">*</span>
                     </p>
                     <div className="w-full flex flex-row gap-4 mt-2">
                       <label
                         className={` ${outfit.className} flex items-center gap-2 text-black/80 text-lg cursor-pointer`}
                       >
                         <input
+                         ref={refs.leftKnee}
                           type="checkbox"
                           checked={selectedKnees.includes("LEFT")}
                           onChange={() => toggleKnee("LEFT")}
@@ -1243,6 +1578,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         className={` ${outfit.className} flex items-center gap-2 text-black/80 text-lg cursor-pointer`}
                       >
                         <input
+                         ref={refs.rightKnee}
                           type="checkbox"
                           checked={selectedKnees.includes("RIGHT")}
                           onChange={() => toggleKnee("RIGHT")}
@@ -1260,9 +1596,10 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     <p
                       className={`${outfit.className} font-normal text-base text-black/80`}
                     >
-                      Operation Funding *
+                      Operation Funding <span className="text-red-500">*</span>
                     </p>
                     <select
+                      ref={refs.selectedFunding}
                       className={`
                             w-full
                             bg-transparent
@@ -1338,6 +1675,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                 </button>
               </div>
             </div>
+
             {showAlert && (
               <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">

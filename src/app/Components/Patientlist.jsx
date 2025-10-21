@@ -45,6 +45,8 @@ import {
   ChevronLeftIcon,
   ClipboardDocumentCheckIcon,
   XMarkIcon,
+  XCircleIcon,
+  PowerIcon,
 } from "@heroicons/react/16/solid";
 import Patientregistration from "./Patientregistration";
 import Doctorregistration from "./Doctorregistration";
@@ -244,7 +246,7 @@ const Patientlist = ({
   const [side, setSide] = useState("left");
   const [operativePeriod, setOperativePeriod] = useState("all");
   const [subOperativePeriod, setSubOperativePeriod] = useState("all");
-  const [completionStatus, setCompletionStatus] = useState("all");
+  const [completionStatus, setCompletionStatus] = useState("pending");
   const [selectedDate, setSelectedDate] = useState("");
   const today = new Date();
   const [selectedMonth, setselectedMonth] = useState(today.getMonth() + 1); // 1–12
@@ -262,7 +264,7 @@ const Patientlist = ({
     setSortOrder("low_to_high");
     setSelectedDate("");
     setselectedMonth("");
-    setselectedYear(today.getFullYear());
+    setselectedYear("");
     setSearchTerm("");
     setShowAll(true); // Show everything when clear all
   };
@@ -273,16 +275,7 @@ const Patientlist = ({
     setDropdownOpen(false);
   };
 
-  // 1️⃣ Apply search across all patients first
-  const searchedPatients = searchTerm
-    ? patients.filter(
-        (p) =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : [...patients]; // copy all if no search
-
-  const filteredPatients = searchedPatients.filter((patient) => {
+  const filteredPatients = patients.filter((patient) => {
     const qData =
       side === "left"
         ? patient.left_questionnaires
@@ -290,12 +283,12 @@ const Patientlist = ({
     const hasNoQuestionnaires =
       !qData || Object.values(qData).every((q) => Object.keys(q).length === 0);
 
-    if (
-      hasNoQuestionnaires &&
-      completionStatus !== "pending" &&
-      completionStatus !== "completed"
-    )
-      return true; // include no-questionnaire patients unconditionally
+    // if (
+    //   hasNoQuestionnaires &&
+    //   completionStatus !== "pending" &&
+    //   completionStatus !== "completed"
+    // )
+    //   return true; // include no-questionnaire patients unconditionally
 
     // 1️⃣ Side filter
     if (side) {
@@ -308,9 +301,9 @@ const Patientlist = ({
     if (operativePeriod && operativePeriod !== "all") {
       if (
         operativePeriod === "pre-op" &&
-        ((side === "left" && patient.period?.toLowerCase() !== "pre op") ||
+        ((side === "left" && patient.period?.toLowerCase() !== "pre-op") ||
           (side === "right" &&
-            patient.period_right?.toLowerCase() !== "pre op"))
+            patient.period_right?.toLowerCase() !== "pre-op"))
       )
         return false;
 
@@ -363,6 +356,7 @@ const Patientlist = ({
 
     // 4️⃣ Date / Month-Year filters
     if (selectedDate) {
+      console.log("Selected date", selectedDate, qData);
       const selected = new Date(selectedDate).toISOString().split("T")[0];
       const hasMatching = Object.values(qData).some(
         (q) =>
@@ -432,6 +426,10 @@ const Patientlist = ({
     const bNoData =
       !bData || Object.values(bData).every((q) => Object.keys(q).length === 0);
 
+    // 🟡 Always move deactivated patients to the end
+    if (!a.activation_status && b.activation_status) return 1;
+    if (a.activation_status && !b.activation_status) return -1;
+
     // NA-first
     if (aNoData && !bNoData) return -1;
     if (!aNoData && bNoData) return 1;
@@ -471,7 +469,13 @@ const Patientlist = ({
   });
 
   // Use searchedPatients if searchTerm exists, otherwise filteredPatients
-  const displayedPatients = sortedPatients;
+  const displayedPatients = searchTerm
+    ? patients.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.uhid.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : sortedPatients;
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50); // initial default
@@ -486,7 +490,7 @@ const Patientlist = ({
   // Optional: adjust rowsPerPage if it exceeds array length
   useEffect(() => {
     if (rowsPerPage > displayedPatients.length) {
-      setRowsPerPage(Math.max(5, displayedPatients.length));
+      setRowsPerPage(Math.max(50, displayedPatients.length));
     }
   }, [displayedPatients.length]);
 
@@ -501,12 +505,12 @@ const Patientlist = ({
   );
 
   const generatePageOptions = (total) => {
-    const options = [5, 10, 25, 50].filter((n) => n < total);
+    const options = [50].filter((n) => n < total);
     if (!options.includes(total)) options.push(total);
     return options;
   };
 
-  const [selectedRole, setSelectedRole] = useState("patient");
+  const [selectedRole, setSelectedRole] = useState("");
 
   const data = [
     { name: "Patients", count: 51 },
@@ -599,12 +603,16 @@ const Patientlist = ({
       return;
     }
 
+    if (digitsOnly === alterphone) {
+      showWarning("Phone and Alternate phone should not be same");
+      return;
+    }
+
     if (/^0+$/.test(digitsOnly)) {
       showWarning("Invalid phone number");
       return;
     }
 
-    setPhone(phoneInput); // save edited value
     setIsEditPhone(false);
 
     const payload = {
@@ -626,7 +634,8 @@ const Patientlist = ({
 
       showWarning("Phone number updated successfully");
     } catch (error) {
-      console.error("Error updating phone:", error);
+      // console.error("Error updating phone:", error);
+      setPhone(phone);
       showWarning("Failed to update phone number");
     }
   };
@@ -664,6 +673,11 @@ const Patientlist = ({
 
     if (!alterphoneInput || alterphoneInput.length !== 10) {
       showWarning("Alternate phone number must be 10 digits");
+      return;
+    }
+
+    if (phone === alterphoneInput) {
+      showWarning("Phone and Alternate phone should not be same");
       return;
     }
 
@@ -768,6 +782,35 @@ const Patientlist = ({
   };
 
   const idOptions = ["PASSPORT", "PAN", "AADHAAR", "ABHA"];
+
+  // Regex for each ID type
+  const idRegex = {
+    passport: /^[A-PR-WY][0-9]{7}$/, // Example: Indian passport format
+    pan: /^[A-Z]{5}[0-9]{4}[A-Z]$/, // PAN
+    aadhaar: /^[0-9]{12}$/, // Aadhaar
+    abha: /^[A-Za-z0-9]{10,20}$/, // ABHA
+  };
+
+  const idConfig = {
+    passport: { maxLength: 9, pattern: /^[A-Z0-9]*$/i }, // typical alphanumeric passport
+    aadhaar: { maxLength: 12, pattern: /^[0-9]*$/ },
+    pan: { maxLength: 10, pattern: /^[A-Z0-9]*$/i },
+
+    abha: { maxLength: 14, pattern: /^[0-9]*$/ }, // ✅ new entry
+  };
+
+  // State for errors
+  const [idErrors, setIdErrors] = useState({});
+
+  // Handle blur or save for each ID
+  const validateID = (id, value) => {
+    if (!value) return ""; // Empty is allowed
+    if (!idRegex[id]?.test(value)) {
+      return `${id} format is invalid`;
+    }
+    return "";
+  };
+
   // State
   const [selectedIDs, setSelectedIDs] = useState({});
   // Which ID is currently being edited (null = none)
@@ -785,6 +828,7 @@ const Patientlist = ({
         existing[key] = profpat.id_proofs[key].number;
         inputs[key] = profpat.id_proofs[key].number;
       });
+      console.log("ID PROOFS", existing);
       setSelectedIDs(existing);
       setIdInputs(inputs);
     }
@@ -798,6 +842,7 @@ const Patientlist = ({
   const handleCancelID = (id) => {
     setEditingID(null); // exit edit mode
     setIdInputs((prev) => ({ ...prev, [id]: selectedIDs[id] })); // reset to original
+    setIdErrors((prev) => ({ ...prev, [id]: "" }));
   };
 
   const handleInputChange = (id, value) => {
@@ -810,15 +855,21 @@ const Patientlist = ({
       return;
     }
 
+    const error = validateID(id, idInputs[id]);
+    if (error) {
+      setIdErrors((prev) => ({ ...prev, [id]: error }));
+      setIdInputs((prev) => ({ ...prev, [id]: "" })); // clear invalid input
+      return;
+    }
+
     const payload = {
-      field: [id],
+      field: id,
       value: idInputs[id],
     };
-
     // console.log("ID inputs", payload);
 
     try {
-      await axios.put(
+      await axios.patch(
         `${API_URL}patients/update-field/${profpat?.uhid}`,
         payload
       );
@@ -826,6 +877,7 @@ const Patientlist = ({
       setSelectedIDs((prev) => ({ ...prev, [id]: idInputs[id] }));
       setEditingID(null); // close edit
       setReloadreq(true);
+      setIdErrors((prev) => ({ ...prev, [id]: "" }));
       showWarning(`${id} updated successfully`);
     } catch (error) {
       console.error("Error updating ID proof:", error);
@@ -909,6 +961,7 @@ const Patientlist = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = null;
     }
+    showWarning("Image reset Successfull");
     setimgupload(false);
   };
 
@@ -1002,6 +1055,56 @@ const Patientlist = ({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const notifyFlag = sessionStorage.getItem("notifyflag");
+      const patientNotifyId = sessionStorage.getItem("patientnotifyid");
+
+      if (notifyFlag === "true" && patientNotifyId) {
+        setisOpenreminder(true);
+        setselectedpatuhid(patientNotifyId);
+        return;
+      }
+
+      const activeFlag = sessionStorage.getItem("activflag");
+      const patientActiveId = sessionStorage.getItem("patientactivid");
+
+      if (activeFlag === "true" && patientActiveId) {
+        setisActivationstatus(true);
+        setselectedpatuhidactivation(patientActiveId);
+        return;
+      }
+    }
+  }, [paginatedPatients]);
+
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        if (reloadreq) {
+          window.location.reload();
+        }
+        setshowprof(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
+
+  const isDefaultFilter =
+    side === "left" &&
+    operativePeriod === "all" &&
+    subOperativePeriod === "all" &&
+    completionStatus === "all" &&
+    sortOrder === "low_to_high" &&
+    selectedDate === "" &&
+    selectedMonth === "" &&
+    selectedYear === "";
+
   return (
     <>
       <div
@@ -1081,6 +1184,7 @@ const Patientlist = ({
                                     : "bg-white text-black"
                                 }
                               `}
+                  title="Click for new patient registration"
                 >
                   ADD NEW PATIENT
                 </p>
@@ -1099,6 +1203,7 @@ const Patientlist = ({
                                     : "bg-white text-black"
                                 }
                               `}
+                  title="Click for new doctor registration"
                 >
                   ADD NEW DOCTOR
                 </p>
@@ -1134,8 +1239,19 @@ const Patientlist = ({
                 }`}
               >
                 <p
-                  className={`${raleway.className} text-[#2B2B2B] font-semibold text-sm w-1/7 cursor-pointer`}
+                  className={`
+                    ${raleway.className}
+                    text-teal-600
+                    font-semibold
+                    text-sm
+                    w-1/7
+                    cursor-pointer
+                    underline
+                    hover:scale-110
+                    transition
+                  `}
                   onClick={handleClearAll}
+                  title="Click to clear the filter and search"
                 >
                   Clear All
                 </p>
@@ -1145,7 +1261,12 @@ const Patientlist = ({
                     type="text"
                     placeholder="Search ..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // allow only letters, numbers, and spaces
+                      const filteredValue = value.replace(/[^a-zA-Z0-9 ]/g, "");
+                      setSearchTerm(filteredValue);
+                    }}
                     className="text-black w-full pl-10 pr-4 py-1 border-2 border-gray-300 rounded-lg"
                   />
                   <svg
@@ -1170,8 +1291,13 @@ const Patientlist = ({
                   className={`${raleway.className} relative`}
                 >
                   <div
-                    className="bg-white rounded-lg p-3 cursor-pointer"
+                    className={`rounded-lg p-3 cursor-pointer transition-all duration-300 ${
+                      isDefaultFilter
+                        ? "bg-white border border-gray-200"
+                        : "bg-teal-100 border-2 border-teal-500 shadow-md"
+                    }`}
                     onClick={() => setDropdownOpen((prev) => !prev)}
+                    title="Click to open filter options"
                   >
                     <svg
                       width="12"
@@ -1198,7 +1324,11 @@ const Patientlist = ({
                       {/* Side */}
                       <div className="mb-4">
                         <p className="font-semibold mb-1">Side</p>
-                        <label className="inline-flex items-center mr-4 cursor-pointer">
+                        <label
+                          className={`inline-flex items-center mr-4 cursor-pointer ${
+                            side === "left" ? "font-bold text-lg" : ""
+                          }`}
+                        >
                           <input
                             type="radio"
                             className="form-radio"
@@ -1206,10 +1336,15 @@ const Patientlist = ({
                             value="left"
                             checked={side === "left"}
                             onChange={() => setSide("left")}
+                            onClick={() => setShowAll(true)}
                           />
                           <span className="ml-2">Left</span>
                         </label>
-                        <label className="inline-flex items-center cursor-pointer">
+                        <label
+                          className={`inline-flex items-center cursor-pointer ${
+                            side === "right" ? "font-bold text-lg" : ""
+                          }`}
+                        >
                           <input
                             type="radio"
                             className="form-radio"
@@ -1217,6 +1352,7 @@ const Patientlist = ({
                             value="right"
                             checked={side === "right"}
                             onChange={() => setSide("right")}
+                            onClick={() => setShowAll(true)}
                           />
                           <span className="ml-2">Right</span>
                         </label>
@@ -1227,7 +1363,13 @@ const Patientlist = ({
                         <p className="font-semibold mb-1">Operative Period</p>
                         {["all", "pre-op", "post-op"].map((period) => (
                           <div key={period}>
-                            <label className="inline-flex items-center mr-4 cursor-pointer">
+                            <label
+                              className={`inline-flex items-center mr-4 cursor-pointer ${
+                                operativePeriod === period
+                                  ? "font-bold text-lg"
+                                  : ""
+                              }`}
+                            >
                               <input
                                 type="radio"
                                 className="form-radio"
@@ -1240,6 +1382,7 @@ const Patientlist = ({
                                     setSubOperativePeriod(""); // reset sub-period if switching away
                                   }
                                 }}
+                                onClick={() => setShowAll(true)}
                               />
                               <span className="ml-2 capitalize">{period}</span>
                             </label>
@@ -1252,7 +1395,11 @@ const Patientlist = ({
                                     (sub) => (
                                       <label
                                         key={sub}
-                                        className="inline-flex items-center cursor-pointer"
+                                        className={`inline-flex items-center cursor-pointer ${
+                                          subOperativePeriod === sub
+                                            ? "font-bold text-lg"
+                                            : ""
+                                        }`}
                                       >
                                         <input
                                           type="radio"
@@ -1283,7 +1430,11 @@ const Patientlist = ({
                           (status) => (
                             <label
                               key={status}
-                              className="inline-flex items-center mr-4 cursor-pointer"
+                              className={`inline-flex items-center mr-4 cursor-pointer ${
+                                completionStatus === status
+                                  ? "font-bold text-lg"
+                                  : ""
+                              }`}
                             >
                               <input
                                 type="radio"
@@ -1292,6 +1443,7 @@ const Patientlist = ({
                                 value={status}
                                 checked={completionStatus === status}
                                 onChange={() => setCompletionStatus(status)}
+                                onClick={() => setShowAll(true)}
                               />
                               <span className="ml-2">
                                 {status
@@ -1304,13 +1456,19 @@ const Patientlist = ({
                       </div>
 
                       {/* Calendar Date Picker */}
-                      <div className="mb-4">
+                      <div className="mb-4" title="Deadline Date">
                         <p className="font-semibold mb-1 ">Select Date</p>
                         <input
                           type="date"
                           value={selectedDate}
                           onChange={(e) => setSelectedDate(e.target.value)}
-                          className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                          className={`  rounded px-2 py-1 text-sm w-full cursor-pointer ${
+                            selectedDate
+                              ? "font-bold text-lg border-black border-2"
+                              : "border-gray-300 border"
+                          }`}
+                          onClick={() => setShowAll(true)}
+                          title="Questionnaire Deadline Date"
                         />
                       </div>
 
@@ -1324,8 +1482,15 @@ const Patientlist = ({
                           <select
                             value={selectedMonth}
                             onChange={(e) => setselectedMonth(e.target.value)}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm w-1/2"
+                            onClick={() => setShowAll(true)}
+                            className={` rounded px-2 py-1 text-sm w-1/2 cursor-pointer ${
+                              selectedMonth
+                                ? "font-bold text-lg border-black border-2"
+                                : "border-gray-300 border"
+                            }`}
+                            title="Questionnaire Deadline Month"
                           >
+                            <option value="">Month</option>
                             {[
                               "Jan",
                               "Feb",
@@ -1350,16 +1515,26 @@ const Patientlist = ({
                           <select
                             value={selectedYear}
                             onChange={(e) => setselectedYear(e.target.value)}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm w-1/2"
+                            onClick={() => setShowAll(true)}
+                            className={`rounded px-2 py-1 text-sm w-1/2 cursor-pointer ${
+                              selectedYear
+                                ? "font-bold text-lg border-black border-2"
+                                : "border-gray-300 border"
+                            }`}
+                            title="Questionnaire Deadline Year"
                           >
-                            {Array.from({ length: 10 }, (_, i) => {
-                              const year = new Date().getFullYear() + i;
-                              return (
-                                <option key={year} value={year}>
-                                  {year}
-                                </option>
-                              );
-                            })}
+                            <option value="">Year</option>
+                            {Array.from(
+                              {
+                                length:
+                                  new Date().getFullYear() + 10 - 1950 + 1,
+                              },
+                              (_, i) => 1950 + i
+                            ).map((year) => (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            ))}
                           </select>
                         </div>
                       </div>
@@ -1373,7 +1548,10 @@ const Patientlist = ({
                         ].map(({ label, value }) => (
                           <label
                             key={value}
-                            className="inline-flex items-center mr-4 cursor-pointer"
+                            className={`inline-flex items-center mr-4 cursor-pointer ${
+                              sortOrder === value ? "font-bold text-lg " : ""
+                            }`}
+                            title="Sorting based on the compliance score"
                           >
                             <input
                               type="radio"
@@ -1382,25 +1560,26 @@ const Patientlist = ({
                               value={value}
                               checked={sortOrder === value}
                               onChange={() => setSortOrder(value)}
+                              onClick={() => setShowAll(true)}
                             />
                             <span className="ml-2">{label}</span>
                           </label>
                         ))}
                       </div>
 
-                      <div className="flex justify-between mt-4 pt-2 border-t border-gray-300">
+                      <div className="flex justify-center mt-4 pt-2 border-t border-gray-300">
                         <button
                           onClick={handleClearAll}
                           className="text-sm font-semibold text-red-600 cursor-pointer"
                         >
                           Reset
                         </button>
-                        <button
+                        {/* <button
                           onClick={handleApply}
                           className="text-sm font-semibold text-blue-600 cursor-pointer"
                         >
                           Apply
-                        </button>
+                        </button> */}
                       </div>
                     </div>
                   )}
@@ -1422,6 +1601,7 @@ const Patientlist = ({
                   className="bg-transparent outline-none text-gray-700 font-semibold cursor-pointer"
                   value={rowsPerPage}
                   onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                  title="Click to select no of records to be displayed"
                 >
                   {generatePageOptions(displayedPatients.length).map(
                     (count) => (
@@ -1441,6 +1621,7 @@ const Patientlist = ({
                     onClick={() =>
                       setCurrentPage((prev) => Math.max(prev - 1, 1))
                     }
+                    title="Move to previous page"
                   >
                     <svg
                       className="w-4 h-4 text-gray-600"
@@ -1470,6 +1651,7 @@ const Patientlist = ({
                     onClick={() =>
                       setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                     }
+                    title="Move to next page"
                   >
                     <svg
                       className="w-4 h-4 text-gray-600"
@@ -1541,7 +1723,7 @@ const Patientlist = ({
                             : "w-[30%]"
                         } ${
                           !patient.activation_status
-                            ? "opacity-50 cursor-not-allowed"
+                            ? "opacity-30 cursor-not-allowed"
                             : ""
                         }`}
                       >
@@ -1565,7 +1747,9 @@ const Patientlist = ({
                             onClick={() => {
                               setshowprof(true);
                               setshowprofpat(patient);
+                              console.log("Prof Pat", patient);
                             }}
+                            title="Click to view patient profile"
                           />
                           <div
                             className={`w-full flex items-center ${
@@ -1622,7 +1806,7 @@ const Patientlist = ({
                               : "w-1/4 text-center"
                           } ${
                             !patient.activation_status
-                              ? "opacity-50 cursor-not-allowed"
+                              ? "opacity-30 cursor-not-allowed"
                               : ""
                           }`}
                         >
@@ -1639,7 +1823,7 @@ const Patientlist = ({
                               : "w-1/4 text-center"
                           } ${
                             !patient.activation_status
-                              ? "opacity-50 cursor-not-allowed"
+                              ? "opacity-30 cursor-not-allowed"
                               : ""
                           }`}
                         >
@@ -1654,14 +1838,17 @@ const Patientlist = ({
                               : "w-1/4 text-center"
                           } ${
                             !patient.activation_status
-                              ? "opacity-50 cursor-not-allowed"
+                              ? "opacity-30 cursor-not-allowed"
                               : ""
                           }`}
                         >
                           {(side === "left"
                             ? patient.left_compliance
                             : patient.right_compliance) === "NA" ? (
-                            <div className="w-full flex flex-col items-end relative group">
+                            <div
+                              className="w-full flex flex-col items-end relative group"
+                              title="Questionnaire Compliance rate"
+                            >
                               <div
                                 className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}
                               >
@@ -1672,7 +1859,7 @@ const Patientlist = ({
                                 alt="Not assigned"
                                 className="w-6 h-6"
                               />
-                              <div className="relative w-full h-1.5 overflow-hidden bg-white cursor-pointer">
+                              <div className="relative w-full h-1.5 overflow-hidden bg-white ">
                                 <div
                                   className="h-full bg-[#E5E5E5]"
                                   style={{
@@ -1685,7 +1872,10 @@ const Patientlist = ({
                               </div>
                             </div>
                           ) : (
-                            <div className="w-full flex flex-col items-center relative group">
+                            <div
+                              className="w-full flex flex-col items-center relative group"
+                              title="Questionnaire Compliance rate"
+                            >
                               <div
                                 className={`${poppins.className} absolute -top-7 left-0 transform translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black border-2 border-black px-3 rounded-lg`}
                               >
@@ -1731,7 +1921,7 @@ const Patientlist = ({
                             width < 750 ? "w-3/4 text-center" : "w-1/4"
                           } ${
                             !patient.activation_status
-                              ? "opacity-50 cursor-not-allowed"
+                              ? "opacity-30 cursor-not-allowed"
                               : ""
                           }`}
                         >
@@ -1748,20 +1938,30 @@ const Patientlist = ({
                               src={Notify}
                               alt="Message"
                               className={`w-6 h-6 mx-auto ${
-                                patient.left_compliance === "NA" ||
                                 !patient.activation_status
+                                  ? "opacity-30 cursor-not-allowed"
+                                  : patient.left_compliance === "NA"
                                   ? "opacity-50 cursor-not-allowed"
                                   : "cursor-pointer"
-                              }`}
+                              }
+                              `}
                               onClick={() => {
                                 if (
                                   patient.left_compliance === "NA" ||
                                   !patient.activation_status
                                 )
                                   return;
+                                if (typeof window !== "undefined") {
+                                  sessionStorage.setItem("notifyflag", "true");
+                                  sessionStorage.setItem(
+                                    "patientnotifyid",
+                                    patient.uhid
+                                  );
+                                }
                                 setisOpenreminder(true);
                                 setselectedpatuhid(patient.uhid);
                               }}
+                              title="Click to Notify patients"
                             />
                           </div>
                         </div>
@@ -1776,7 +1976,7 @@ const Patientlist = ({
                               width < 750 ? "w-1/2 text-center" : "w-1/2"
                             } ${
                               !patient.activation_status
-                                ? "opacity-50 cursor-not-allowed"
+                                ? "opacity-30 cursor-not-allowed"
                                 : "cursor-pointer"
                             }`}
                           >
@@ -1785,11 +1985,7 @@ const Patientlist = ({
                               className="w-8 h-8 mx-auto"
                               alt="Report"
                               onClick={() => {
-                                if (
-                                  
-                                  !patient.activation_status
-                                )
-                                  return;
+                                if (!patient.activation_status) return;
                                 handlenavigatereport();
                                 if (typeof window !== "undefined") {
                                   sessionStorage.setItem(
@@ -1798,31 +1994,44 @@ const Patientlist = ({
                                   );
                                 }
                               }}
+                              title="Click to view patient report"
                             />
                           </div>
                           <div
                             className={`${
                               width < 750 ? "w-1/2 text-center" : "w-1/2"
-                            } ${
-                              !patient.activation_status
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                            }`}
+                            } `}
                           >
-                            <Image
-                              src={Block}
-                              alt="Block"
-                              className="w-6 h-6 mx-auto cursor-pointer"
+                            <PowerIcon
+                              className={`w-6 h-6 cursor-pointer ${
+                                !patient.activation_status
+                                  ? "text-red-800"
+                                  : "text-green-700"
+                              }`}
                               onClick={() => {
+                                if (typeof window !== "undefined") {
+                                  sessionStorage.setItem("activflag", "true");
+                                  sessionStorage.setItem(
+                                    "patientactivid",
+                                    patient.uhid
+                                  );
+                                }
                                 setisActivationstatus(true);
                                 setselectedpatuhidactivation(patient.uhid);
                               }}
+                              title="Click to activate/deactivate patient"
                             />
                           </div>
                         </div>
                       </div>
                     </div>
                   ))
+                ) : patients.length === 0 ? (
+                  <p
+                    className={`${poppins.className} text-gray-500 font-medium text-center`}
+                  >
+                    No Patients Found
+                  </p>
                 ) : (
                   <p
                     className={`${poppins.className} text-gray-500 font-medium text-center`}
@@ -1896,13 +2105,12 @@ const Patientlist = ({
                             className={`w-12 h-6 cursor-pointer`}
                           />
                         )}
-                        <Image
-                          src={CloseIcon}
-                          alt="Close"
-                          className={`w-fit h-6 cursor-pointer`}
+
+                        <XCircleIcon
+                          className="w-fit h-7 text-red-600  cursor-pointer"
                           onClick={() => {
                             setshowprof(false);
-                            if(reloadreq){
+                            if (reloadreq) {
                               window.location.reload();
                             }
                           }}
@@ -1928,7 +2136,7 @@ const Patientlist = ({
                           <p
                             className={` ${outfit.className} font-normal text-base text-black/80`}
                           >
-                            Name
+                            NAME
                           </p>
                           <p
                             className={`w-full text-black
@@ -1986,7 +2194,7 @@ const Patientlist = ({
                             <p
                               className={`${outfit.className} font-normal text-base text-black/80`}
                             >
-                              Gender
+                              GENDER
                             </p>
                             <p
                               className={`w-full text-black
@@ -2007,7 +2215,7 @@ const Patientlist = ({
                             <p
                               className={`${outfit.className} font-normal text-base text-black/80`}
                             >
-                              Date of Birth
+                              DATE OF BIRTH
                             </p>
                             <p
                               className={`w-full text-black
@@ -2024,7 +2232,7 @@ const Patientlist = ({
                           <p
                             className={`${outfit.className} font-normal text-base text-black/80`}
                           >
-                            Phone Number *
+                            PHONE NUMBER
                           </p>
 
                           {!isEditPhone ? (
@@ -2085,7 +2293,7 @@ const Patientlist = ({
                             <p
                               className={`${outfit.className} font-normal text-base text-black/80`}
                             >
-                              Address *
+                              ADDRESS
                             </p>
 
                             {!isEditAddress ? (
@@ -2102,7 +2310,7 @@ const Patientlist = ({
                               <div className="flex flex-col gap-2">
                                 <textarea
                                   className={`w-full bg-[#D9D9D9]/20 outline-none text-black py-2 px-2 
-                    font-medium text-base resize-none ${inter.className}`}
+                    font-medium text-base resize-none ${inter.className} border-2 border-black rounded-md`}
                                   rows={5}
                                   value={addressInput}
                                   onChange={(e) =>
@@ -2132,6 +2340,7 @@ const Patientlist = ({
                               className="w-40 h-40 cursor-pointer"
                               onClick={() => fileInputRef.current.click()}
                               style={{ position: "relative" }}
+                              title="Click to edit Profile Picture"
                             >
                               {isBlobUrl ? (
                                 // Plain <img> for blob URLs
@@ -2188,6 +2397,7 @@ const Patientlist = ({
                                           type1: "patient",
                                         });
                                       }}
+                                      title="Click to upload in the profile"
                                     >
                                       UPLOAD
                                     </p>
@@ -2209,7 +2419,7 @@ const Patientlist = ({
                         <p
                           className={`${outfit.className} font-normal text-base text-black/80`}
                         >
-                          Email
+                          EMAIL
                         </p>
 
                         {!isEditEmail ? (
@@ -2246,7 +2456,7 @@ const Patientlist = ({
                         <p
                           className={`${outfit.className} font-normal text-base text-black/80`}
                         >
-                          Alternate Phone Number
+                          ALTERNATE PHONE NUMBER
                         </p>
 
                         {!isEditAlterPhone ? (
@@ -2290,7 +2500,7 @@ const Patientlist = ({
                       <p
                         className={`${outfit.className} font-normal text-base text-black/80`}
                       >
-                        ID PROOF *
+                        ID PROOF
                       </p>
 
                       {Object.keys(selectedIDs).map((id) => (
@@ -2323,6 +2533,25 @@ const Patientlist = ({
                                 onChange={(e) =>
                                   handleInputChange(id, e.target.value)
                                 }
+                                maxLength={idConfig[id]?.maxLength || 50}
+                                onBlur={() => {
+                                  const error = validateID(id, idInputs[id]);
+                                  if (error) {
+                                    setIdErrors((prev) => ({
+                                      ...prev,
+                                      [id]: error,
+                                    }));
+                                    setIdInputs((prev) => ({
+                                      ...prev,
+                                      [id]: "",
+                                    }));
+                                  } else {
+                                    setIdErrors((prev) => ({
+                                      ...prev,
+                                      [id]: "",
+                                    }));
+                                  }
+                                }}
                               />
                               <ClipboardDocumentCheckIcon
                                 className="w-5 h-5 cursor-pointer text-green-500"
@@ -2330,8 +2559,15 @@ const Patientlist = ({
                               />
                               <XMarkIcon
                                 className="w-5 h-5 cursor-pointer text-red-500"
-                                onClick={() => handleCancelID(id)}
+                                onClick={() => {
+                                  handleCancelID(id);
+                                }}
                               />
+                              {idErrors[id] && (
+                                <span className="text-red-500 text-sm">
+                                  {idErrors[id]}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2463,12 +2699,18 @@ const Patientlist = ({
 
       <Patientregistration
         isOpenacc={isOpenaccpat}
-        onCloseacc={() => setIsOpenaccpat(false)}
+        onCloseacc={() => {
+          setIsOpenaccpat(false);
+          setSelectedRole("");
+        }}
       />
 
       <Doctorregistration
         isOpenacc={isOpenaccdoc}
-        onCloseacc={() => setIsOpenaccdoc(false)}
+        onCloseacc={() => {
+          setIsOpenaccdoc(false);
+          setSelectedRole("");
+        }}
       />
 
       <Sendreminder

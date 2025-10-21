@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
+import { createPortal } from "react-dom";
+
 
 import axios from "axios";
 import { API_URL } from "../libs/global";
@@ -42,6 +44,12 @@ import {
   ChevronLeftIcon,
   ClipboardDocumentCheckIcon,
   XMarkIcon,
+  BackwardIcon,
+  ArrowLeftStartOnRectangleIcon,
+  ArrowLeftIcon,
+  XCircleIcon,
+  RocketLaunchIcon,
+  DocumentCheckIcon,
 } from "@heroicons/react/16/solid";
 import Patientlist from "./Patientlist";
 import Doctorlist from "./Doctorlist";
@@ -228,6 +236,24 @@ const Patientreport = () => {
   const [searchTermdoctors, setSearchTermdoctors] = useState("");
   const [selected, setSelected] = useState([]);
 
+  const fetchSurgeryReport = async (storedUHID, op_date) => {
+    try {
+      
+      const lowercaseUHID = storedUHID.toLowerCase();
+      // console.log(op_date);
+      const formattedOpDate = `op-${op_date}`;
+      // console.log(formattedOpDate);
+      const response = await axios.get(
+        `${API_URL}get-surgery/${lowercaseUHID}/${formattedOpDate}`
+      );
+      return "true";
+    } catch (error) {
+      return "false";
+    }
+  };
+
+ 
+
   const questionnaires = [
     "Oxford Knee Score (OKS)",
     "Short Form - 12 (SF-12)",
@@ -361,7 +387,28 @@ const Patientreport = () => {
     }
   };
 
-  const [handlequestableswitch, sethandlequestableswitch] = useState("left");
+  const [handlequestableswitch, sethandlequestableswitch] = useState(() => {
+    if (typeof window !== "undefined") {
+      const storedSide = sessionStorage.getItem("deleteside");
+      if (storedSide) return storedSide;
+      if (
+        surgerydatleftorig &&
+        surgerydatleftorig !== "NA" &&
+        surgerydatrightorig &&
+        surgerydatrightorig !== "NA"
+      )
+        return "left";
+      if (surgerydatrightorig && surgerydatrightorig !== "NA") return "right";
+    }
+    return "left"; // fallback if neither side exists
+  });
+
+  // Whenever you update it, also save to sessionStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("deleteside", handlequestableswitch);
+    }
+  }, [handlequestableswitch]);
 
   const [surgerydatleft, setsurgeryDateleft] = useState("");
   const [surgerydatright, setsurgeryDateright] = useState("");
@@ -398,89 +445,100 @@ const Patientreport = () => {
     "Forgotten Joint Score": "FJS",
   };
 
-        const KOOSJR_MAP = [
-      100.0, 91.975, 84.6, 79.914, 76.332, 73.342, 70.704, 68.284, 65.994,
-      63.776, 61.583, 59.381, 57.14, 54.84, 52.465, 50.012, 47.487, 44.905,
-      42.281, 39.625, 36.931, 34.174, 31.307, 28.251, 24.875, 20.941, 15.939,
-      8.291, 0.0,
-    ];
+  const KOOSJR_MAP = [
+    100.0, 91.975, 84.6, 79.914, 76.332, 73.342, 70.704, 68.284, 65.994, 63.776,
+    61.583, 59.381, 57.14, 54.84, 52.465, 50.012, 47.487, 44.905, 42.281,
+    39.625, 36.931, 34.174, 31.307, 28.251, 24.875, 20.941, 15.939, 8.291, 0.0,
+  ];
 
-  const transformApiDataToStaticWithDates = (apiData, surgeryDateLeft) => {
+  const transformApiDataToStaticWithDates = (apiData) => {
     if (!apiData) return { periods: [], questionnaires: [] };
 
-    const periodOffsets = [
-      { key: "pre_op", label: "Pre Op", offset: -1 },
-      { key: "6w", label: "6W", offset: 42 },
-      { key: "3m", label: "3M", offset: 90 },
-      { key: "6m", label: "6M", offset: 180 },
-      { key: "1y", label: "1Y", offset: 365 },
-      { key: "2y", label: "2Y", offset: 730 },
+    const periodLabels = [
+      { key: "pre_op", label: "Pre Op" },
+      { key: "6w", label: "6W" },
+      { key: "3m", label: "3M" },
+      { key: "6m", label: "6M" },
+      { key: "1y", label: "1Y" },
+      { key: "2y", label: "2Y" },
     ];
 
-    const periods = periodOffsets.map((p) => ({
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Ignore time
+
+    // Collect deadlines from all questionnaires
+    const periodDeadlines = {};
+    periodLabels.forEach((p) => {
+      let latestDate = null;
+
+      Object.values(apiData).forEach((qPeriods) => {
+        const periodData = qPeriods?.[p.label];
+        if (periodData?.deadline) {
+          const d = new Date(periodData.deadline);
+          if (!latestDate || d > latestDate) {
+            latestDate = d;
+          }
+        }
+      });
+
+      periodDeadlines[p.key] = latestDate
+        ? latestDate.toISOString().split("T")[0]
+        : null;
+    });
+
+    const periods = periodLabels.map((p) => ({
       key: p.key,
       label: p.label,
-      date: addDays(surgeryDateLeft, p.offset),
+      date: periodDeadlines[p.key] || "-",
     }));
 
     const questionnaires = Object.entries(apiData).map(([qKey, qPeriods]) => {
       const scores = {};
       const notesMap = {};
 
-      periodOffsets.forEach((p) => {
+      periodLabels.forEach((p) => {
         const periodData = qPeriods?.[p.label];
-        // console.log("Questionnaire API Data outside:", periodData);
+        const deadline = periodDeadlines[p.key]
+          ? new Date(periodDeadlines[p.key])
+          : null;
 
-        if (!qPeriods?.[p.label]) {
-          // Period itself not present
+        if (!periodData) {
+          // Not assigned
           scores[p.key] = "-";
           notesMap[p.key] = "-";
-        } else if (periodData && !periodData.score) {
-          // Period exists but score missing
-          scores[p.key] = "NA";
+        } else if (!periodData.score) {
+          // Assigned but no score → check expiry
+          if (deadline && deadline < today) {
+            scores[p.key] = "EXPIRED";
+          } else {
+            scores[p.key] = "NA";
+          }
 
-          // console.log("Questionnaire API Data inside:", periodData);
-
-          // Notes
-          const [first, second, third, fourth] = periodData.other_notes || [];
+          const [first, , third] = periodData.other_notes || [];
           const filtered = [];
           if (first === "filledBy: Self") filtered.push(first);
           if (third === "otherPain: No") filtered.push(third);
-          notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
+          notesMap[p.key] = filtered.length
+            ? filtered.join(", ")
+            : scores[p.key]; // Show same status if no notes
         } else {
-          // Period exists and score exists
+          // Score exists
           const match = periodData.score.match(/:\s*(\d+)/);
-          if (QUESTIONNAIRE_NAMES[qKey]) {
-            if (QUESTIONNAIRE_NAMES[qKey].includes("KOOS")) {
-              // ✅ Special handling for KOOS
-             
-              scores[p.key] = match ? KOOSJR_MAP[match[1]] : "NA";
-             
-            } else {
-              scores[p.key] = match ? match[1] : "NA";
-            }
-          }
+          scores[p.key] = match ? match[1] : "NA";
+
           const [first, second, third, fourth] = periodData.other_notes || [];
           const filtered = [];
-          if (first === "filledBy: Self") {
-            filtered.push(first);
-          } else {
-            filtered.push(first);
-            filtered.push(second);
-          }
+          if (first === "filledBy: Self") filtered.push(first);
+          else filtered.push(first, second);
 
-          if (third === "otherPain: No") {
-            filtered.push(third);
-          } else {
-            filtered.push(third);
-            filtered.push(fourth);
-          }
+          if (third === "otherPain: No") filtered.push(third);
+          else filtered.push(third, fourth);
+
           notesMap[p.key] = filtered.length ? filtered.join(", ") : "NA";
         }
       });
 
       const fullName = QUESTIONNAIRE_NAMES[qKey] || qKey;
-
       return { name: fullName, scores, notesMap };
     });
 
@@ -489,20 +547,16 @@ const Patientreport = () => {
 
   // Usage
   const staticLeft = surgerydatleftorig
-    ? transformApiDataToStaticWithDates(
-        patientbasic?.questionnaire_left,
-        surgerydatleftorig
-      )
+    ? transformApiDataToStaticWithDates(patientbasic?.questionnaire_left)
     : { periods: [], questionnaires: [] };
   const staticRight = surgerydatrightorig
-    ? transformApiDataToStaticWithDates(
-        patientbasic?.questionnaire_right,
-        surgerydatrightorig
-      )
+    ? transformApiDataToStaticWithDates(patientbasic?.questionnaire_right)
     : { periods: [], questionnaires: [] };
 
   const questionnaireData =
     handlequestableswitch === "left" ? staticLeft : staticRight;
+
+  // console.log("Transformed Questionnaire Data:", questionnaireData);
 
   // const questionnaireData = {
   //   periods: [
@@ -627,12 +681,12 @@ const Patientreport = () => {
   };
 
   const getDoctorNameByUhid = (uhid) => {
-    if(uhid === "Doctor") return "NA";
+    if (uhid === "Doctor") return "NA";
     if (!uhid) return "Doctor";
     const doc = doctor.find((d) => d.uhid === uhid);
-    
+
     if (!doc) return "Doctor";
-    console.log("Doctor name",doc);
+    // console.log("Doctor name", doc);
     return doc.name.startsWith("Dr.") ? doc.name : `Dr. ${doc.name}`;
   };
 
@@ -662,10 +716,16 @@ const Patientreport = () => {
       const today = new Date();
       const currentYear = today.getFullYear();
 
+      if (year < 1900) {
+        showWarning("Please enter a valid surgery date from 1900");
+        setsurgeryDateleft(surgerydatleftorig); // or setsurgeryDateright("") for right side
+        return;
+      }
+
       // Basic validations
       if (day < 1 || day > 31 || month < 1 || month > 12) {
         showWarning("Please enter a valid surgery date");
-        setS("");
+        setsurgeryDateleft(surgerydatleftorig);
         return;
       }
 
@@ -677,7 +737,7 @@ const Patientreport = () => {
         manualDate.getFullYear() !== year
       ) {
         showWarning("Invalid date combination. Please enter a correct date.");
-        setsurgeryDateleft("");
+        setsurgeryDateleft(surgerydatleftorig);
         return;
       }
 
@@ -731,13 +791,19 @@ const Patientreport = () => {
       const month = parseInt(monthStr, 10);
       const year = parseInt(yearStr, 10);
 
+      if (year < 1900) {
+        showWarning("Please enter a valid surgery date from 1900");
+        setsurgeryDateright(setsurgeryDaterightorig); // or setsurgeryDateright("") for right side
+        return;
+      }
+
       const today = new Date();
       const currentYear = today.getFullYear();
 
       // Basic validations
       if (day < 1 || day > 31 || month < 1 || month > 12) {
         showWarning("Please enter a valid surgery date");
-        setS("");
+        setsurgeryDateright(setsurgeryDaterightorig);
         return;
       }
 
@@ -749,7 +815,7 @@ const Patientreport = () => {
         manualDate.getFullYear() !== year
       ) {
         showWarning("Invalid date combination. Please enter a correct date.");
-        setsurgeryDateright("");
+        setsurgeryDateright(setsurgeryDaterightorig);
         return;
       }
 
@@ -780,9 +846,89 @@ const Patientreport = () => {
     }
   };
 
-  const handleschedulesurgery = async () => {
-    if (!surgerydatleft && !surgerydatright) {
-      showWarning("Surgery Date is required");
+  const [surgleftdeleteconfirm, setsurgleftdeleteconfirm] = useState(false);
+  const [surgrightdeleteconfirm, setsurgrightdeleteconfirm] = useState(false);
+
+  const [schedulesurgleftlock, setschedulesurgleftlock] = useState(false);
+  const [schedulesurgrightlock, setschedulesurgrightlock] = useState(false);
+
+  const handleschedulesurgeryleft = async () => {
+    setschedulesurgleftlock(true);
+    if (
+      staticLeft &&
+      staticLeft.questionnaires &&
+      staticLeft.questionnaires.length > 0
+    ) {
+      const allDash = staticLeft.questionnaires.every(
+        (q) =>
+          Object.values(q.scores).every((v) => v === "-") &&
+          Object.values(q.notesMap).every((v) => v === "-")
+      );
+
+      const anyNA = staticLeft.questionnaires.some(
+        (q) =>
+          Object.values(q.scores).some((v) => v === "NA") ||
+          Object.values(q.notesMap).some((v) => v === "NA")
+      );
+
+      if (anyNA) {
+        const periods = ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"];
+
+        for (const period of periods) {
+          const payload = {
+            uhid: patientbasic?.uhid,
+            side: "left",
+            period: period,
+          };
+
+          try {
+            const res = await axios.delete(
+              `${API_URL}questionnaires/delete-period`,
+              {
+                data: payload,
+              }
+            );
+          } catch (err) {
+            setschedulesurgleftlock(false);
+            if (err.response) {
+              showWarning(
+                err.response.data.message || "Failed to reset questionnaire"
+              );
+            } else {
+              showWarning("Network error");
+            }
+          }
+        }
+      } else if (allDash) {
+      } else {
+        const periods = ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"];
+
+        for (const period of periods) {
+          const payload = {
+            uhid: patientbasic?.uhid,
+            side: "left",
+            period: period,
+          };
+
+          try {
+            const res = await axios.delete(
+              `${API_URL}questionnaires/delete-period`,
+              {
+                data: payload,
+              }
+            );
+          } catch (err) {
+            setschedulesurgleftlock(false);
+            if (err.response) {
+              showWarning(
+                err.response.data.message || "Failed to reset questionnaire"
+              );
+            } else {
+              showWarning("Network error");
+            }
+          }
+        }
+      }
     }
 
     try {
@@ -796,7 +942,102 @@ const Patientreport = () => {
           payloadLeft
         );
       }
+      setschedulesurgleftlock(false);
+      showWarning("Surgery Scheduled successfully");
+      window.location.reload();
+    } catch (err) {
+      setschedulesurgleftlock(false);
+      if (err.response) {
+        let errorMsg =
+          err.response.data?.detail || "Failed to schedule left knee surgery";
+        if (typeof errorMsg === "object") errorMsg = JSON.stringify(errorMsg);
+        showWarning(errorMsg);
+      } else {
+        showWarning("Network error");
+      }
+    }
+  };
 
+  const handleschedulesurgeryright = async () => {
+    setschedulesurgrightlock(true);
+    if (
+      staticRight &&
+      staticRight.questionnaires &&
+      staticRight.questionnaires.length > 0
+    ) {
+      const allDash = staticRight.questionnaires.every(
+        (q) =>
+          Object.values(q.scores).every((v) => v === "-") &&
+          Object.values(q.notesMap).every((v) => v === "-")
+      );
+
+      const anyNA = staticRight.questionnaires.some(
+        (q) =>
+          Object.values(q.scores).some((v) => v === "NA") ||
+          Object.values(q.notesMap).some((v) => v === "NA")
+      );
+
+      if (anyNA) {
+        const periods = ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"];
+
+        for (const period of periods) {
+          const payload = {
+            uhid: patientbasic?.uhid,
+            side: "right",
+            period: period,
+          };
+
+          try {
+            const res = await axios.delete(
+              `${API_URL}questionnaires/delete-period`,
+              {
+                data: payload,
+              }
+            );
+          } catch (err) {
+            setschedulesurgrightlock(false);
+            if (err.response) {
+              showWarning(
+                err.response.data.message || "Failed to reset questionnaire"
+              );
+            } else {
+              showWarning("Network error");
+            }
+          }
+        }
+      } else if (allDash) {
+      } else {
+        const periods = ["Pre Op", "6W", "3M", "6M", "1Y", "2Y"];
+
+        for (const period of periods) {
+          const payload = {
+            uhid: patientbasic?.uhid,
+            side: "right",
+            period: period,
+          };
+
+          try {
+            const res = await axios.delete(
+              `${API_URL}questionnaires/delete-period`,
+              {
+                data: payload,
+              }
+            );
+          } catch (err) {
+            setschedulesurgrightlock(false);
+            if (err.response) {
+              showWarning(
+                err.response.data.message || "Failed to reset questionnaire"
+              );
+            } else {
+              showWarning("Network error");
+            }
+          }
+        }
+      }
+    }
+
+    try {
       if (surgerydatright) {
         const payloadRight = {
           field: "surgery_date_right",
@@ -807,13 +1048,14 @@ const Patientreport = () => {
           payloadRight
         );
       }
-
+      setschedulesurgrightlock(false);
       showWarning("Surgery Scheduled successfully");
       window.location.reload();
     } catch (err) {
+      setschedulesurgrightlock(false);
       if (err.response) {
         let errorMsg =
-          err.response.data?.detail || "Failed to schedule surgery";
+          err.response.data?.detail || "Failed to schedule right knee surgery";
         if (typeof errorMsg === "object") errorMsg = JSON.stringify(errorMsg);
         showWarning(errorMsg);
       } else {
@@ -825,85 +1067,85 @@ const Patientreport = () => {
   const [opd, setopd] = useState("");
   const [finalopd, setfinalopd] = useState("");
 
-  const handleopd = (e) => {
-    let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
+  // const handleopd = (e) => {
+  //   let value = e.target.value.replace(/\D/g, ""); // Remove all non-digits
 
-    if (value.length >= 3 && value.length <= 4) {
-      value = value.slice(0, 2) + "-" + value.slice(2);
-    } else if (value.length > 4 && value.length <= 8) {
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
-    } else if (value.length > 8) {
-      value = value.slice(0, 8);
-      value =
-        value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+  //   if (value.length >= 3 && value.length <= 4) {
+  //     value = value.slice(0, 2) + "-" + value.slice(2);
+  //   } else if (value.length > 4 && value.length <= 8) {
+  //     value =
+  //       value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+  //   } else if (value.length > 8) {
+  //     value = value.slice(0, 8);
+  //     value =
+  //       value.slice(0, 2) + "-" + value.slice(2, 4) + "-" + value.slice(4);
+  //   }
+
+  //   setopd(value); // Show typed value until complete
+
+  //   if (value.length === 10) {
+  //     const [dayStr, monthStr, yearStr] = value.split("-");
+  //     const day = parseInt(dayStr, 10);
+  //     const month = parseInt(monthStr, 10);
+  //     const year = parseInt(yearStr, 10);
+
+  //     const today = new Date();
+  //     today.setHours(0, 0, 0, 0); // normalize to midnight
+
+  //     // Basic validations
+  //     if (day < 1 || day > 31 || month < 1 || month > 12) {
+  //       showWarning("Please enter a valid date");
+  //       setopd("");
+  //       setfinalopd("");
+  //       return;
+  //     }
+
+  //     // Check valid real date
+  //     const manualDate = new Date(year, month - 1, day);
+  //     manualDate.setHours(0, 0, 0, 0);
+
+  //     if (
+  //       manualDate.getDate() !== day ||
+  //       manualDate.getMonth() + 1 !== month ||
+  //       manualDate.getFullYear() !== year
+  //     ) {
+  //       showWarning("Invalid date combination. Please enter a correct date.");
+  //       setopd("");
+  //       setfinalopd("");
+  //       return;
+  //     }
+
+  //     // ✅ Present & future date only
+  //     if (manualDate < today) {
+  //       showWarning("Only present or future dates are allowed.");
+  //       setopd("");
+  //       setfinalopd("");
+  //       return;
+  //     }
+
+  //     // Format as YYYY-MM-DD for backend
+  //     const isoDateOnly = `${year.toString().padStart(4, "0")}-${month
+  //       .toString()
+  //       .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+  //     const isoDate = new Date(Date.UTC(year, month - 1, day)).toISOString();
+
+  //     setopd(isoDateOnly);
+  //     setfinalopd(isoDate);
+  //   }
+  // };
+
+  const calendarRefopd = useRef();
+
+  // 📅 Calendar picker handler
+  const handleCalendarChangeopd = (e) => {
+    const value = e.target.value; // yyyy-mm-dd
+    if (!value) {
+      setfinalopd("");
+      return;
     }
+    console.log("Calendar picked OPD:", value);
 
-    // Until full date entered, show raw value
-    setopd(value);
-
-    if (value.length === 10) {
-      const [dayStr, monthStr, yearStr] = value.split("-");
-      const day = parseInt(dayStr, 10);
-      const month = parseInt(monthStr, 10);
-      const year = parseInt(yearStr, 10);
-
-      const today = new Date();
-      const currentYear = today.getFullYear();
-
-      // Basic validations
-      if (day < 1 || day > 31 || month < 1 || month > 12) {
-        showWarning("Please enter a valid surgery date");
-        setopd("");
-        setfinalopd("");
-        return;
-      }
-
-      // Check valid real date
-      const manualDate = new Date(`${year}-${month}-${day}`);
-      if (
-        manualDate.getDate() !== day ||
-        manualDate.getMonth() + 1 !== month ||
-        manualDate.getFullYear() !== year
-      ) {
-        showWarning("Invalid date combination. Please enter a correct date.");
-        setopd("");
-        setfinalopd("");
-        return;
-      }
-
-      // // 🚨 Past date check
-      // if (manualDate < today) {
-      //   showWarning("Past dates are not allowed");
-      //   setsurgeryDateright("");
-      //   return;
-      // }
-
-      manualDate.setHours(0, 0, 0, 0);
-
-      // If all valid, format as "dd Mmm yyyy"
-      const formattedDate = manualDate.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "numeric",
-        year: "numeric",
-      });
-
-      const manualDate1 = new Date(Date.UTC(year, month - 1, day));
-      const isoDate = manualDate1.toISOString(); // always correct UTC day
-
-      // e.g. "2025-09-02T00:00:00.000Z"
-
-      // If you want just YYYY-MM-DD (string only, no time):
-      const isoDateOnly = `${year.toString().padStart(4, "0")}-${month
-        .toString()
-        .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-
-      // console.log("ISO full:", isoDate);
-      // console.log("ISO date only:", isoDateOnly);
-
-      setopd(isoDateOnly); // for backend (UTC safe)
-      setfinalopd(isoDate); // if you also need just the date
-    }
+    setfinalopd(value);
   };
 
   const handleupdateopd = async () => {
@@ -934,22 +1176,55 @@ const Patientreport = () => {
     if (patientbasic) {
       setsurgeryDateleftorig(patientbasic.surgery_left || "");
       setsurgeryDaterightorig(patientbasic.surgery_right || "");
-      setsurgeryDateleft(patientbasic.surgery_left || "");
-      setsurgeryDateright(patientbasic.surgery_right || "");
+      setsurgeryDateleft(patientbasic.surgery_left || "DD-MM-YYYY");
+      setsurgeryDateright(patientbasic.surgery_right || "DD-MM-YYYY");
       const opdStart = patientbasic?.opd?.[0]?.start;
       setopd(opdStart ? opdStart.split("T")[0] : "");
     }
   }, [patientbasic]);
 
+   const [isSurgeryDoneleft, setIsSurgeryDoneleft] = useState(false);
+
+useEffect(() => {
+  const checkSurgery = async () => {
+    if (!patientbasic?.uhid || !patientbasic?.surgery_left) return;
+    const result = await fetchSurgeryReport(patientbasic?.uhid, patientbasic?.surgery_left);
+    
+    setIsSurgeryDoneleft(result);
+  };
+
+  checkSurgery();
+}, [patientbasic]);
+
+  const [isSurgeryDoneright, setIsSurgeryDoneright] = useState(false);
+useEffect(() => {
+  const checkSurgery = async () => {
+    if (!patientbasic?.uhid || !patientbasic?.surgery_right) return;
+    const result = await fetchSurgeryReport(patientbasic?.uhid, patientbasic?.surgery_right);
+    console.log("Surgery right result", result, patientbasic?.uhid, patientbasic?.surgery_right);
+    setIsSurgeryDoneright(result);
+  };
+
+  checkSurgery();
+}, [patientbasic]);
+
+  const [assignlock, setassignlock] = useState(false);
+
   const handleassignquestionnaires = async () => {
+    setassignlock(true);
+    if (assignlock) {
+      return;
+    }
     if (!patientbasic || selected.length === 0) {
       showWarning("Patient ID not found");
       return;
     }
+
     if (!surgerydatleft && !surgerydatright) {
       showWarning("No surgery date found for either side.");
       return;
     }
+
     const uhid = patientbasic.uhid;
     const sides = [];
 
@@ -1033,9 +1308,11 @@ const Patientreport = () => {
     try {
       const res = await axios.put(`${API_URL}add-questionnaire`, payload);
       showWarning("Questionnaire Assigned Successfully");
-      
+
       handleSendremainder();
+      setassignlock(false);
     } catch (error) {
+      setassignlock(false);
       if (axios.isAxiosError(error)) {
         showWarning(error.response?.data || error.message);
       } else {
@@ -1079,6 +1356,10 @@ const Patientreport = () => {
     if (!resetperiod) {
       showWarning("Reset Period not found");
       return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("deleteside", handlequestableswitch);
     }
 
     const payload = {
@@ -1140,6 +1421,10 @@ const Patientreport = () => {
     if (!resetperiod) {
       showWarning("Reset Period not found");
       return;
+    }
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("deleteside", handlequestableswitch);
     }
 
     const payload = {
@@ -1243,6 +1528,7 @@ const Patientreport = () => {
     const text = await res.text();
     try {
       data = JSON.parse(text);
+      setassignlock(false);
       window.location.reload();
     } catch {
       data = { error: "Invalid JSON response", raw: text };
@@ -1277,9 +1563,170 @@ const Patientreport = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const surgmessages = [
+    "Scheduling Surgery.",
+    "Almost done!..",
+    "A little moment...",
+  ];
+
+  const [indexsurg, setIndexsurg] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndexsurg((prev) => (prev + 1) % surgmessages.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const [isFloatingNoteVisible, setIsFloatingNoteVisible] = useState(false);
+  const [floatingNote, setFloatingNote] = useState("");
+  const [floatingName, setFloatingName] = useState("");
+  const [floatingKey, setFloatingKey] = useState("");
+  const [position, setPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const tabRef = useRef(null);
+
+  const handleNoteOpen = (note, name, key) => {
+    setFloatingNote(note);
+    setFloatingName(name);
+    setFloatingKey(key);  
+    setIsFloatingNoteVisible(true);
+  };
+
+ // 1) keep your existing selectstart effect as-is
+useEffect(() => {
+  const handleSelectStart = (e) => {
+    if (isDragging) e.preventDefault();
+  };
+  document.addEventListener("selectstart", handleSelectStart);
+  return () => document.removeEventListener("selectstart", handleSelectStart);
+}, [isDragging]);
+
+// 2) Combined mouse + touch move effect (replace your existing mouse-only effect with this)
+useEffect(() => {
+  const NOTE_WIDTH = 300; // keep same as your bounding
+  const NOTE_HEIGHT = 200; // keep same as your bounding
+
+  const handlePointerMove = (clientX, clientY) => {
+    setPosition((prev) => {
+      const newX = clientX - offset.x;
+      const newY = clientY - offset.y;
+
+      const boundedX = Math.min(
+        window.innerWidth - NOTE_WIDTH,
+        Math.max(20, newX)
+      );
+      const boundedY = Math.min(
+        window.innerHeight - NOTE_HEIGHT,
+        Math.max(20, newY)
+      );
+
+      return { x: boundedX, y: boundedY };
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    handlePointerMove(e.clientX, e.clientY);
+  };
+
+  const handleMouseUp = () => {
+    if (isDragging) setIsDragging(false);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    // Prevent page scrolling while dragging
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (touch) handlePointerMove(touch.clientX, touch.clientY);
+  };
+
+  const handleTouchEnd = () => {
+    if (isDragging) setIsDragging(false);
+  };
+
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", handleMouseUp);
+  window.addEventListener("touchmove", handleTouchMove, { passive: false });
+  window.addEventListener("touchend", handleTouchEnd);
+
+  return () => {
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+    window.removeEventListener("touchmove", handleTouchMove, { passive: false });
+    window.removeEventListener("touchend", handleTouchEnd);
+  };
+}, [isDragging, offset]);
+
+// 3) Add touchstart listener (to behave like your mousedown starter).
+//     This does not require editing the mouse header onMouseDown (but you should add the class to the header for robust target detection).
+useEffect(() => {
+  const handleTouchStart = (e) => {
+    // Only start dragging if touch started on the header element
+    const touch = e.touches?.[0];
+    if (!touch) return;
+
+    // If the touch target (or its ancestor) has the header class, begin drag
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (target && target.closest && target.closest(".floating-note-header")) {
+      // Prevent page scroll jitter when starting drag
+      e.preventDefault();
+      setIsDragging(true);
+      setOffset((prev) => ({
+        // compute offset similar to your mouse logic
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y,
+      }));
+    }
+  };
+
+  window.addEventListener("touchstart", handleTouchStart, { passive: false });
+
+  return () => {
+    window.removeEventListener("touchstart", handleTouchStart, { passive: false });
+  };
+}, [position]);
+
+// 4) Keep your centering effect for initial open as-is
+useEffect(() => {
+  if (isFloatingNoteVisible) {
+    setPosition({
+      x: window.innerWidth / 2 - 150, // half width of the note
+      y: window.innerHeight / 2 - 100,
+    });
+  }
+}, [isFloatingNoteVisible]);
+
+
+
+
+
+  useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === "Escape") {
+        setresetconfirm(false);
+        setdeleteconfirm(false);
+        setsurgleftdeleteconfirm(false);
+        setsurgrightdeleteconfirm(false);
+        setIsFloatingNoteVisible(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+
+    // cleanup on unmount
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
+
+  
+
   return (
     <div
-      className={`w-full flex rounded-4xl ${
+      className={`w-full flex rounded-4xl overflow-x-hidden ${
         width >= 1000
           ? "flex-row overflow-y-auto h-full"
           : "flex-col pb-4 h-full overflow-y-auto"
@@ -1353,42 +1800,44 @@ const Patientreport = () => {
               <p
                 className={`${inter.className} font-semibold text-sm text-black text-center`}
               >
-                RECORDS
+                QUESTIONNAIRE RECORDS
               </p>
 
               <div className={`flex flex-col w-full items-end gap-4`}>
                 <p
-                  className={`${inter.className} font-semibold text-white text-sm bg-[#44A194] rounded-lg px-3 py-0.5 text-center w-fit`}
+                  className={`${inter.className} font-semibold text-black text-sm text-center w-fit underline`}
                 >
-                  COMPLETED {patientbasic?.leftCompleted ?? "N/A"}
+                  LEFT LEG
                 </p>
+
                 <p
                   className={`${inter.className} font-semibold text-black text-sm bg-[#C8D5D7] rounded-lg px-3 py-0.5 text-center w-fit`}
                 >
                   PENDING {patientbasic?.leftPending ?? "N/A"}
                 </p>
                 <p
-                  className={`${inter.className} font-semibold text-black text-sm text-center w-fit`}
+                  className={`${inter.className} font-semibold text-white text-sm bg-[#44A194] rounded-lg px-3 py-0.5 text-center w-fit`}
                 >
-                  LEFT LEG
+                  COMPLETED {patientbasic?.leftCompleted ?? "N/A"}
                 </p>
               </div>
 
               <div className={`flex flex-col w-full items-end gap-4`}>
                 <p
-                  className={`${inter.className} font-semibold text-white text-sm bg-[#44A194] rounded-lg px-3 py-0.5 text-center w-fit`}
+                  className={`${inter.className} font-semibold text-black text-sm text-center w-fit underline`}
                 >
-                  COMPLETED {patientbasic?.rightCompleted ?? "N/A"}
+                  RIGHT LEG
                 </p>
+
                 <p
                   className={`${inter.className} font-semibold text-black text-sm bg-[#C8D5D7] rounded-lg px-3 py-0.5 text-center w-fit`}
                 >
                   PENDING {patientbasic?.rightPending ?? "N/A"}
                 </p>
                 <p
-                  className={`${inter.className} font-semibold text-black text-sm text-center w-fit`}
+                  className={`${inter.className} font-semibold text-white text-sm bg-[#44A194] rounded-lg px-3 py-0.5 text-center w-fit`}
                 >
-                  RIGHT LEG
+                  COMPLETED {patientbasic?.rightCompleted ?? "N/A"}
                 </p>
               </div>
             </div>
@@ -1416,7 +1865,7 @@ const Patientreport = () => {
             <div
               className={`w-full flex  ${
                 width >= 500
-                  ? "flex-row justify-between"
+                  ? "flex-row justify-between items-center"
                   : "flex-col items-center gap-6"
               }`}
             >
@@ -1436,7 +1885,7 @@ const Patientreport = () => {
                     className={`${
                       raleway.className
                     } text-sm px-4 py-[0.5px] w-1/5 rounded-lg font-semibold   ${
-                      !surgerydatleft || surgerydatleft === "NA"
+                      !surgerydatleftorig || surgerydatleftorig === "NA"
                         ? "cursor-not-allowed opacity-50"
                         : "cursor-pointer"
                     }
@@ -1447,20 +1896,22 @@ const Patientreport = () => {
                   }
                   `}
                     onClick={
-                      !surgerydatleft || surgerydatleft === "NA"
+                      !surgerydatleftorig || surgerydatleftorig === "NA"
                         ? undefined
                         : () => {
                             sethandlequestableswitch("left");
                           }
                     }
+                    title="Left Knee"
                   >
                     Left
                   </button>
+
                   <button
                     className={`${
                       raleway.className
                     } text-sm  py-[0.5px] w-1/5 rounded-lg font-semibold   ${
-                      !surgerydatright || surgerydatright === "NA"
+                      !surgerydatrightorig || surgerydatrightorig === "NA"
                         ? "cursor-not-allowed opacity-50"
                         : "cursor-pointer"
                     }
@@ -1470,39 +1921,91 @@ const Patientreport = () => {
                       : "bg-[#CAD9D6] text-black"
                   }`}
                     onClick={
-                      !surgerydatright || surgerydatright === "NA"
+                      !surgerydatrightorig || surgerydatrightorig === "NA"
                         ? undefined
                         : () => {
                             sethandlequestableswitch("right");
                           }
                     }
+                    title="Right Knee"
                   >
                     Right
                   </button>
                 </div>
+
                 <div
                   className={`${
-                    width < 700 ? "h-full w-full" : "h-3/7 w-2/5 "
-                  } flex flex-row gap-2 justify-center items-center`}
+                    width < 700 ? "h-full w-full" : "h-3/7 w-2/5"
+                  } flex flex-row gap-2 items-center`}
                 >
-                  <div className="relative w-1/2">
+                  <p
+                    className={`${inter.className} font-bold text-black text-sm w-2/7`}
+                  >
+                    OPD:
+                  </p>
+
+                  <div className="relative flex-1 flex items-center w-4/7">
+                    {/* Date display */}
+                    <p
+                      className={`
+                        w-full
+                        text-black/80
+                        font-medium
+                        text-base
+                        break-words
+                        truncate
+                        pr-10
+                      `}
+                      title={opd} // optional tooltip if text overflows
+                    >
+                      {(() => {
+                        if (finalopd) return finalopd;
+                        const dateToCheck = opd;
+                        if (!dateToCheck) return "YYYY-MM-DD";
+
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const selectedDate = new Date(dateToCheck);
+                        selectedDate.setHours(0, 0, 0, 0);
+
+                        return selectedDate >= today
+                          ? dateToCheck
+                          : "YYYY-MM-DD";
+                      })()}
+                    </p>
+
+                    {/* Hidden date picker */}
                     <input
-                      type="text"
-                      placeholder="OPD (dd-mm-yyyy) *"
-                      value={opd}
-                      onChange={handleopd}
-                      className={` ${inter.className} w-full h-fit text-black py-1 px-4 placeholder-[#30263B] rounded-sm text-sm font-medium outline-none`}
-                      maxLength={10}
-                      style={{
-                        backgroundColor: "rgba(217, 217, 217, 0.5)",
-                      }}
+                      ref={calendarRefopd}
+                      type="date"
+                      className="absolute top-0 right-0 opacity-0 cursor-pointer w-4 h-8"
+                      onChange={handleCalendarChangeopd}
+                      min={new Date().toISOString().split("T")[0]} // ✅ today
                     />
+
+                    {/* Calendar icon */}
+                    <button
+                      type="button"
+                      onClick={() => calendarRefopd.current?.showPicker?.()}
+                      className="absolute right-2 text-gray-600 hover:text-black cursor-pointer top-1/2 -translate-y-1/2"
+                      title="Pick from calendar"
+                    >
+                      <CalendarIcon className="w-5 h-5 text-black" />
+                    </button>
                   </div>
-                  <Image
-                    src={Calendar}
-                    alt="OPD date"
-                    className="w-6 h-10 cursor-pointer"
-                    onClick={handleupdateopd}
+
+                  <ClipboardDocumentCheckIcon
+                    className={`w-6 h-10 cursor-pointer ${
+                      finalopd
+                        ? "text-green-600"
+                        : "text-gray-300 cursor-not-allowed"
+                    }`}
+                    title={finalopd ? "Fix Appointment" : "No Date Selected"}
+                    onClick={() => {
+                      if (!finalopd) return; // do nothing if date not selected
+                      handleupdateopd();
+                    }}
                   />
                 </div>
               </div>
@@ -1545,7 +2048,7 @@ const Patientreport = () => {
                     <thead className="text-[#475467] text-[16px] font-medium text-center">
                       <tr className="rounded-2xl">
                         <th
-                          className={`${inter.className} font-bold text-white text-sm px-2 py-1 bg-gray-900 rounded-tl-2xl text-center whitespace-nowrap w-3/5`}
+                          className={`${inter.className} font-bold text-white text-sm px-2 py-1 bg-gray-900 rounded-tl-2xl text-center whitespace-nowrap w-[300px]`}
                         >
                           <div className="flex flex-row justify-center items-center gap-4">
                             <p>Questionnaire</p>
@@ -1560,8 +2063,11 @@ const Patientreport = () => {
                                 : ""
                             }`}
                           >
-                            <div className="flex flex-row items-center gap-1 w-full">
-                              <div className="w-fit">
+                            <div className="flex flex-row items-center justify-center gap-1 w-full">
+                              <div
+                                className="w-fit"
+                                title="Click to delete the questionnaires"
+                              >
                                 <span
                                   className={`${inter.className} font-bold text-white`}
                                 >
@@ -1587,7 +2093,10 @@ const Patientreport = () => {
                                   {period.date}
                                 </span>
                               </div>
-                              <div className={`w-fit`}>
+                              <div
+                                className={`w-fit`}
+                                title="Click to reset the questionnaires"
+                              >
                                 <span className="text-[#475467]">
                                   <Image
                                     src={Reset}
@@ -1622,40 +2131,71 @@ const Patientreport = () => {
 
                           {Object.keys(q.scores || {}).length > 0 ? (
                             questionnaireData.periods.map((period) => {
-                              const score=q.scores?.[period.key];
-                                let score1 = score; 
-                                const num = Number(score1);
+                              const score = q.scores?.[period.key];
+                              let score1 = score;
+                              const num = Number(score1);
 
-                                if (!isNaN(num)) {
-                                  if (q.name.includes("OKS")) {
-                                    score1 = ((num / 48) * 100).toFixed(1); // convert to 100
-                                  } else if (q.name.includes("FJS")) {
-                                    score1 = ((num / 60) * 100).toFixed(1); // convert to 100
-                                  }
+                              if (!isNaN(num)) {
+                                if (q.name.includes("OKS")) {
+                                  score1 = ((num / 48) * 100).toFixed(1); // convert to 100
+                                } else if (q.name.includes("FJS")) {
+                                  score1 = ((num / 60) * 100).toFixed(1); // convert to 100
                                 }
+                              }
 
-                                const color = getTextColor(Number(score1));
-
+                              const color = getTextColor(Number(score1));
 
                               return (
                                 <td
                                   key={period.key}
                                   className={`relative px-4 py-2 font-bold text-center align-middle ${
                                     q.notesMap[period.key] &&
-                                    q.notesMap[period.key] !== "NA"
+                                    q.notesMap[period.key] !== "NA" && q.notesMap[period.key] !== "EXPIRED" && !score
                                       ? "group cursor-pointer"
                                       : ""
                                   }`}
-                                  style={{ color }}
+                                  style={{
+                                    color: score === "EXPIRED" ? "red" : color,
+                                  }}
                                 >
                                   {score || "—"}
-                                  {q.notesMap[period.key] &&
+                                  {/* {q.notesMap[period.key] &&
                                     q.notesMap[period.key] !== "NA" && (
                                       <div
                                         className={` ${poppins.className} uppercase  absolute bottom-0 left-1/2 -translate-x-1/2 mb-2 hidden w-full whitespace-normal rounded-lg bg-gray-500 px-3 py-2 text-sm text-white shadow-lg group-hover:block z-50`}
                                       >
                                         {q.notesMap[period.key]}
                                       </div>
+                                    )} */}
+                                  {q.notesMap[period.key] &&
+                                    q.notesMap[period.key] !== "NA" && q.notesMap[period.key] !== "EXPIRED" && score !== "-"  && (
+                                      <button
+                                        onClick={() =>
+                                          handleNoteOpen(q.notesMap[period.key],q.name,period.label)
+                                        }
+                                        className="ml-2 text-gray-500 hover:text-black cursor-pointer"
+                                        title="View Note"
+                                      >
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          className="w-4 h-4 inline-block"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                          strokeWidth={2}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                          />
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                          />
+                                        </svg>
+                                      </button>
                                     )}
                                 </td>
                               );
@@ -1753,7 +2293,7 @@ const Patientreport = () => {
                     >
                       <span
                         className={`w-fit text-center text-sm font-bold text-white rounded-[5px] px-5 py-0.5 ${
-                          !surgerydatleft || surgerydatleft === "NA"
+                          !surgerydatleftorig || surgerydatleftorig === "NA"
                             ? "bg-black opacity-30"
                             : patientbasic?.questionnaireStatusLeft ===
                               "Completed"
@@ -1766,7 +2306,7 @@ const Patientreport = () => {
 
                       <span
                         className={`w-fit text-center text-sm font-bold text-white rounded-[5px] px-4 py-0.5 ${
-                          !surgerydatright || surgerydatright === "NA"
+                          !surgerydatrightorig || surgerydatrightorig === "NA"
                             ? "bg-black opacity-30"
                             : patientbasic?.questionnaireStatusRight ===
                               "Completed"
@@ -1830,6 +2370,7 @@ const Patientreport = () => {
                             : "cursor-not-allowed opacity-50 bg-black"
                         } font-extrabold rounded-lg px-8 py-2 text-center text-white text-xs`}
                         onClick={() => {
+                          setassignlock(true);
                           if (
                             selected.length !== 0 &&
                             ((surgerydatleft &&
@@ -1844,8 +2385,9 @@ const Patientreport = () => {
                             handleassignquestionnaires();
                           }
                         }}
+                        title="Assign Questionnaires"
                       >
-                        ASSIGN
+                        {assignlock ? "ASSIGNING..." : "ASSIGN"}
                       </p>
                     </div>
                   </div>
@@ -2092,6 +2634,7 @@ const Patientreport = () => {
                           onClick={() => {
                             setclosedocedit(true);
                           }}
+                          title="Assign Doctor"
                         />
                       </div>
                     </div>
@@ -2116,15 +2659,17 @@ const Patientreport = () => {
                   </p>
                 </div>
                 <div
-                  className={`w-6/7 ${
+                  className={`w-full ${
                     width < 700 ? "h-full" : "h-2/7"
-                  } flex flex-row gap-2 justify-center items-center`}
+                  } flex flex-row gap-2 justify-center items-center
+                  ${isSurgeryDoneleft === "true" ?"pointer-events-none opacity-50":""}`}
+                  title={isSurgeryDoneleft === "true" ? "Surgery already done":"Surgery not done yet"}
                 >
                   <Image src={Calendar} alt="Left date" />
                   <div className="relative w-full">
                     <input
                       type="text"
-                      placeholder="LEFT (dd-mm-yyyy) *"
+                      placeholder="LEFT (dd-mm-yyyy)"
                       className={` ${inter.className} w-full h-fit text-black py-3 px-4 placeholder-[#30263B] rounded-sm text-sm font-medium outline-none`}
                       maxLength={10}
                       value={surgerydatleft}
@@ -2152,16 +2697,19 @@ const Patientreport = () => {
                     </span>
                   </div>
                 </div>
+
                 <div
-                  className={`w-6/7 ${
+                  className={`w-full ${
                     width < 700 ? "h-full" : "h-3/7"
-                  } flex flex-row gap-2 justify-center items-center`}
+                  } flex flex-row gap-2 justify-center items-center
+                  ${isSurgeryDoneright === "true" ?"pointer-events-none opacity-50":""}`}
+                  title={isSurgeryDoneright === "true" ? "Surgery already done":"Surgery not done yet"}
                 >
                   <Image src={Calendar} alt="Right date" />
                   <div className="relative w-full">
                     <input
                       type="text"
-                      placeholder="RIGHT (dd-mm-yyyy) *"
+                      placeholder="RIGHT (dd-mm-yyyy)"
                       value={surgerydatright}
                       onChange={handleManualsurgeryDateChangeright}
                       className={` ${inter.className} w-full h-fit text-black py-3 px-4 placeholder-[#30263B] rounded-sm text-sm font-medium outline-none`}
@@ -2192,13 +2740,90 @@ const Patientreport = () => {
                 <div
                   className={`${
                     width < 700 ? "h-full" : "h-1/7"
-                  } w-full flex flex-row justify-end items-center pb-2`}
+                  } w-full flex flex-row justify-between items-center pb-2`}
                 >
                   <p
-                    className={` ${raleway.className} font-extrabold rounded-lg px-8 py-2 cursor-pointer text-center text-white text-sm bg-black`}
-                    onClick={handleschedulesurgery}
+                    className={` ${raleway.className} font-extrabold rounded-lg px-4 py-2 cursor-pointer text-center text-white text-xs bg-black
+                    ${isSurgeryDoneleft === "true" ?"pointer-events-none opacity-50":""}`}
+                    title={isSurgeryDoneleft === "true" ? "Surgery already done":"Surgery not done yet"}
+                    onClick={() => {
+                      if (!surgerydatleft) {
+                        showWarning("Left Surgery Date is required");
+                        return;
+                      }
+
+                      if (
+                        staticLeft &&
+                        staticLeft.questionnaires &&
+                        staticLeft.questionnaires.length > 0
+                      ) {
+                        const allDash = staticLeft.questionnaires.every(
+                          (q) =>
+                            Object.values(q.scores).every((v) => v === "-") &&
+                            Object.values(q.notesMap).every((v) => v === "-")
+                        );
+
+                        const anyNA = staticLeft.questionnaires.some(
+                          (q) =>
+                            Object.values(q.scores).some((v) => v === "NA") ||
+                            Object.values(q.notesMap).some((v) => v === "NA")
+                        );
+
+                        if (anyNA) {
+                          setsurgleftdeleteconfirm(true);
+                        } else if (allDash) {
+                          handleschedulesurgeryleft();
+                        } else {
+                          handleschedulesurgeryleft();
+                        }
+                      } else {
+                        handleschedulesurgeryleft();
+                      }
+                    }}
                   >
-                    SCHEDULE
+                    SCHEDULE LEFT
+                  </p>
+
+                  <p
+                    className={` ${raleway.className} font-extrabold rounded-lg px-4 py-2 cursor-pointer text-center text-white text-xs bg-black
+                    ${isSurgeryDoneright === "true" ?"pointer-events-none opacity-50":""}`}
+                    title={isSurgeryDoneright === "true" ? "Surgery already done":"Surgery not done yet"}
+                    onClick={() => {
+                      if (!surgerydatright) {
+                        showWarning("Right Surgery Date is required");
+                        return;
+                      }
+
+                      if (
+                        staticRight &&
+                        staticRight.questionnaires &&
+                        staticRight.questionnaires.length > 0
+                      ) {
+                        const allDash = staticRight.questionnaires.every(
+                          (q) =>
+                            Object.values(q.scores).every((v) => v === "-") &&
+                            Object.values(q.notesMap).every((v) => v === "-")
+                        );
+
+                        const anyNA = staticRight.questionnaires.some(
+                          (q) =>
+                            Object.values(q.scores).some((v) => v === "NA") ||
+                            Object.values(q.notesMap).some((v) => v === "NA")
+                        );
+
+                        if (anyNA) {
+                          setsurgrightdeleteconfirm(true);
+                        } else if (allDash) {
+                          handleschedulesurgeryright();
+                        } else {
+                          handleschedulesurgeryright(true);
+                        }
+                      } else {
+                        handleschedulesurgeryright();
+                      }
+                    }}
+                  >
+                    SCHEDULE RIGHT
                   </p>
                 </div>
               </div>
@@ -2256,10 +2881,8 @@ const Patientreport = () => {
                       <div
                         className={`flex flex-row gap-4 items-center justify-center`}
                       >
-                        <Image
-                          src={CloseIcon}
-                          alt="Close"
-                          className={`w-fit h-6 cursor-pointer`}
+                        <XCircleIcon
+                          className={`h-6 w-6 cursor-pointer text-red-600`}
                           onClick={() => {
                             setresetconfirm(false);
                           }}
@@ -2392,10 +3015,8 @@ const Patientreport = () => {
                       <div
                         className={`flex flex-row gap-4 items-center justify-center`}
                       >
-                        <Image
-                          src={CloseIcon}
-                          alt="Close"
-                          className={`w-fit h-6 cursor-pointer`}
+                        <XCircleIcon
+                          className={`h-6 w-6 cursor-pointer text-red-600`}
                           onClick={() => {
                             setdeleteconfirm(false);
                           }}
@@ -2489,6 +3110,417 @@ const Patientreport = () => {
             </div>
           )}
         </div>
+      )}
+
+      {surgleftdeleteconfirm && (
+        <div
+          className="fixed inset-0 z-40 "
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+          }}
+        >
+          <div
+            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${
+              width < 950 ? "gap-4 w-full" : "w-1/2"
+            }`}
+          >
+            <div
+              className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                width < 1095 ? "flex flex-col gap-4" : ""
+              } max-h-[92vh] rounded-2xl`}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  ${
+                  width < 760 ? "h-fit" : "h-[80%]"
+                } `}
+              >
+                <div
+                  className={`w-full h-full rounded-lg flex flex-col gap-8 ${
+                    width < 760 ? "py-0" : "py-4 px-8"
+                  }`}
+                >
+                  <div className={`w-full flex flex-col gap-1`}>
+                    <div className="flex flex-row justify-between items-center w-full">
+                      <p
+                        className={`${inter.className} text-2xl font-semibold text-black`}
+                      >
+                        Confirmation
+                      </p>
+                      <div
+                        className={`flex flex-row gap-4 items-center justify-center`}
+                      >
+                        <XCircleIcon
+                          className={`h-6 w-6 cursor-pointer text-red-600`}
+                          onClick={() => {
+                            setsurgleftdeleteconfirm(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`w-full flex gap-2 ${
+                      width >= 1200 ? "flex-col" : "flex-col"
+                    }`}
+                  >
+                    <p
+                      className={`${outfit.className} text-lg font-normal text-black`}
+                    >
+                      The assigned questionnaries data for
+                      <span className={`font-bold uppercase`}> left knee </span>
+                      will be reset
+                    </p>
+                  </div>
+
+                  <div className={`w-full flex flex-row`}>
+                    <div
+                      className={`w-full flex flex-row gap-6 items-center ${
+                        width < 700 ? "justify-between" : "justify-end"
+                      }`}
+                    >
+                      <button
+                        className={`text-black/80 font-normal ${
+                          outfit.className
+                        } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
+                        onClick={() => {
+                          setsurgleftdeleteconfirm(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
+                          outfit.className
+                        } ${width < 700 ? "w-1/2" : "w-1/2"}`}
+                        onClick={() => {
+                          handleschedulesurgeryleft();
+                        }}
+                      >
+                        SCHEDULE SURGERY
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {showAlert && (
+                  <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+                    <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">
+                      {alertMessage}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <style>
+            {`
+                 .inline-scroll::-webkit-scrollbar {
+                   width: 12px;
+                 }
+                 .inline-scroll::-webkit-scrollbar-track {
+                   background: transparent;
+                 }
+                 .inline-scroll::-webkit-scrollbar-thumb {
+                   background-color: #076C40;
+                   border-radius: 8px;
+                 }
+           
+                 .inline-scroll {
+                   scrollbar-color: #076C40 transparent;
+                 }
+               `}
+          </style>
+
+          {showAlert && (
+            <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+              <div
+                className={`${poppins.className} bg-yellow-100 border border-red-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out`}
+              >
+                {alertMessage}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {surgrightdeleteconfirm && (
+        <div
+          className="fixed inset-0 z-40 "
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+          }}
+        >
+          <div
+            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${
+              width < 950 ? "gap-4 w-full" : "w-1/2"
+            }`}
+          >
+            <div
+              className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                width < 1095 ? "flex flex-col gap-4" : ""
+              } max-h-[92vh] rounded-2xl`}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  ${
+                  width < 760 ? "h-fit" : "h-[80%]"
+                } `}
+              >
+                <div
+                  className={`w-full h-full rounded-lg flex flex-col gap-8 ${
+                    width < 760 ? "py-0" : "py-4 px-8"
+                  }`}
+                >
+                  <div className={`w-full flex flex-col gap-1`}>
+                    <div className="flex flex-row justify-between items-center w-full">
+                      <p
+                        className={`${inter.className} text-2xl font-semibold text-black`}
+                      >
+                        Confirmation
+                      </p>
+                      <div
+                        className={`flex flex-row gap-4 items-center justify-center`}
+                      >
+                        <XCircleIcon
+                          className={`h-6 w-6 cursor-pointer text-red-600`}
+                          onClick={() => {
+                            setsurgrightdeleteconfirm(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`w-full flex gap-2 ${
+                      width >= 1200 ? "flex-col" : "flex-col"
+                    }`}
+                  >
+                    <p
+                      className={`${outfit.className} text-lg font-normal text-black`}
+                    >
+                      The assigned questionnaries data for
+                      <span className={`font-bold uppercase`}>
+                        {" "}
+                        right knee{" "}
+                      </span>
+                      will be reset
+                    </p>
+                  </div>
+
+                  <div className={`w-full flex flex-row`}>
+                    <div
+                      className={`w-full flex flex-row gap-6 items-center ${
+                        width < 700 ? "justify-between" : "justify-end"
+                      }`}
+                    >
+                      <button
+                        className={`text-black/80 font-normal ${
+                          outfit.className
+                        } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
+                        onClick={() => {
+                          setsurgrightdeleteconfirm(false);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className={`bg-[#161C10] text-white py-2 font-normal cursor-pointer ${
+                          outfit.className
+                        } ${width < 700 ? "w-1/2" : "w-1/2"}`}
+                        onClick={() => {
+                          handleschedulesurgeryright();
+                        }}
+                      >
+                        SCHEDULE SURGERY
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {showAlert && (
+                  <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+                    <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">
+                      {alertMessage}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <style>
+            {`
+                 .inline-scroll::-webkit-scrollbar {
+                   width: 12px;
+                 }
+                 .inline-scroll::-webkit-scrollbar-track {
+                   background: transparent;
+                 }
+                 .inline-scroll::-webkit-scrollbar-thumb {
+                   background-color: #076C40;
+                   border-radius: 8px;
+                 }
+           
+                 .inline-scroll {
+                   scrollbar-color: #076C40 transparent;
+                 }
+               `}
+          </style>
+
+          {showAlert && (
+            <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+              <div
+                className={`${poppins.className} bg-yellow-100 border border-red-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out`}
+              >
+                {alertMessage}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(schedulesurgleftlock || schedulesurgrightlock) && (
+        <div
+          className="fixed inset-0 z-40 "
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+          }}
+        >
+          <div
+            className={`min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto ${
+              width < 950 ? "gap-4 w-full" : "w-1/2"
+            }`}
+          >
+            <div
+              className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                width < 1095 ? "flex flex-col gap-4" : ""
+              } max-h-[92vh] rounded-2xl`}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  ${
+                  width < 760 ? "h-fit" : "h-[80%]"
+                } `}
+              >
+                <div
+                  className={`w-full h-full rounded-lg flex flex-col gap-8 ${
+                    width < 760 ? "py-0" : "py-4 px-8"
+                  }`}
+                >
+                  <div className={`w-full flex flex-col gap-1`}>
+                    <div className="flex flex-row justify-center items-center w-full">
+                      <p
+                        className={`${inter.className} text-2xl font-semibold text-black`}
+                      >
+                        {surgmessages[indexsurg]}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <style>
+            {`
+                 .inline-scroll::-webkit-scrollbar {
+                   width: 12px;
+                 }
+                 .inline-scroll::-webkit-scrollbar-track {
+                   background: transparent;
+                 }
+                 .inline-scroll::-webkit-scrollbar-thumb {
+                   background-color: #076C40;
+                   border-radius: 8px;
+                 }
+           
+                 .inline-scroll {
+                   scrollbar-color: #076C40 transparent;
+                 }
+               `}
+          </style>
+
+          {showAlert && (
+            <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+              <div
+                className={`${poppins.className} bg-yellow-100 border border-red-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out`}
+              >
+                {alertMessage}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isFloatingNoteVisible && createPortal(
+        <div
+          className={` ${poppins.className} fixed z-50 rounded-xl shadow-2xl border border-gray-300 bg-gradient-to-br from-white to-gray-50 w-80 select-none inline-scroll floating-note-header`}
+          style={{
+  top: position.y,
+  left: position.x,
+  cursor: isDragging ? "grabbing" : "grab",
+  transition: isDragging ? "none" : "top 0.15s ease, left 0.15s ease",
+}}
+
+          onMouseDown={(e) => {
+            setIsDragging(true);
+            setOffset({
+              x: e.clientX - position.x,
+              y: e.clientY - position.y,
+            });
+          }}
+        >
+          {/* Header */}
+          <div
+            className="flex justify-between items-center bg-black text-white px-3 py-2 rounded-t-xl cursor-move"
+            onMouseDown={(e) => {
+            setIsDragging(true);
+            setOffset({
+              x: e.clientX - position.x,
+              y: e.clientY - position.y,
+            });
+          }}
+          >
+            <span className="font-semibold text-sm">🗒️ Patient Note</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFloatingNoteVisible(false);
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                setIsFloatingNoteVisible(false);
+              }} // ✅ prevent touch drag start
+              className="hover:text-red-300 font-bold cursor-pointer"
+              title="Close"
+            >
+              <XCircleIcon className="h-5 w-5 text-white"/>
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-3 text-gray-800 text-sm max-h-60 overflow-y-auto">
+            {floatingNote ? (
+              <div className="space-y-2">
+                <h4 className="font-bold text-gray-800 text-center">{floatingName}</h4>
+                <h5 className="font-semibold text-gray-700 text-center">Period: {floatingKey}</h5>
+                {floatingNote.split(",").map((item, index) => {
+                  const [key, value] = item.split(":").map((s) => s.trim());
+                  return (
+                    <div key={index} className="flex flex-col">
+                      <span className="font-semibold text-gray-600 capitalize">{key}</span>
+                      <span className="text-black break-words whitespace-pre-wrap">
+                        {value || "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-gray-500 italic">No note details available</p>
+            )}
+          </div>
+        </div>,
+    document.body
       )}
     </div>
   );
