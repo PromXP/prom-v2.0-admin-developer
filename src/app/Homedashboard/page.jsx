@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import ReactDOM from "react-dom";
 import { useRouter } from "next/navigation";
 
 import axios from "axios";
@@ -17,7 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { Raleway, Inter, Poppins } from "next/font/google";
+import { Raleway, Inter, Poppins, Outfit } from "next/font/google";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
 import MainBg from "@/app/Assets/mainbg.png";
@@ -70,6 +71,12 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "600", "700"], // add weights as needed
   variable: "--font-inter", // optional CSS variable name
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"], // add weights as needed
+  variable: "--font-outfit", // optional CSS variable name
 });
 
 const page = () => {
@@ -222,6 +229,37 @@ const page = () => {
     }
   }, []);
 
+    const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+
+  const showWarning = (message) => {
+    setAlertMessage(message);
+    setShowAlert(true);
+    setTimeout(() => setShowAlert(false), 4000);
+  };
+
+
+   const [showprof, setshowprof] = useState(false);
+
+   const [doctor, setdoctor] = useState({});
+   
+     const fetchdoctor = async () => {
+       try {
+         const res = await axios.get(`${API_URL}getadmin/${sessionStorage.getItem("admin")}`);
+         showWarning("Admin profile fetched");
+   
+         const apiPatients = res.data || {};
+         setdoctor(apiPatients);
+       } catch (error) {
+         showWarning("Failed to fetch admin profile");
+       }
+     };
+
+       const [expand, setexpand] = useState(false);
+
+
+
+
   return (
     <div
       className={`relative bg-[#CFDADE] min-h-screen w-full overflow-x-hidden `}
@@ -308,7 +346,13 @@ const page = () => {
                       onClick={handlelogout}
                     />
                     <div
-                      className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
+                      className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit ${adminame?"cursor-pointer":"pointer-events-none"}`}
+                      onClick={()=>{
+                        if(adminame){
+                          fetchdoctor();
+                          setshowprof(true);
+                        }
+                      }}
                     >
                       <p className="font-semibold">
                         {adminame || "Admin Name"}
@@ -367,6 +411,7 @@ const page = () => {
                   <div className="w-full flex flex-col items-center justify-center gap-8 py-4">
                     <div
                       className={`${raleway.className} py-1 px-4 bg-[#1A2E39] rounded-full text-xs w-fit`}
+                      onClick={()=>{setshowprof(true);}}
                     >
                       <p className="font-semibold">{adminame || "Admin Name"}</p>
                     </div>
@@ -461,7 +506,7 @@ const page = () => {
                       }`}
                     >
                       <button
-                        className={`text-black/80 font-normal ${
+                        className={`text-black/80 font-normal py-2 border-1 border-gray-300 ${
                           raleway.className
                         } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
                         onClick={() => {
@@ -510,6 +555,272 @@ const page = () => {
 
         </div>
       )}
+
+    {showprof &&
+        ReactDOM.createPortal(
+          <div
+            className="fixed inset-0 z-40 "
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.5)", // white with 50% opacity
+            }}
+          >
+            <div
+              className={`
+                    h-screen  flex flex-col items-center justify-center mx-auto my-auto
+                    ${width < 950 ? "gap-4 w-full" : "w-5/8"}
+                    ${expand ? "w-full" : "p-4"}
+                  `}
+            >
+              <div
+                className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
+                  width < 1095 ? "flex flex-col gap-4" : ""
+                } ${expand ? "h-full" : "max-h-[92vh] rounded-2xl"}`}
+              >
+                <div
+                  className={`w-full bg-[#FCFCFC]  ${
+                    width < 760 ? "h-fit" : "h-full"
+                  } `}
+                >
+                  <div
+                    className={`w-full h-full rounded-lg flex flex-col gap-12 ${
+                      width < 760 ? "py-0" : "py-4 px-8"
+                    }`}
+                  >
+                    <div className="flex flex-row justify-between items-center w-full">
+                      <p
+                        className={`${inter.className} text-2xl font-semibold text-black`}
+                      >
+                        Admin Profile
+                      </p>
+                      <div
+                        className={`flex flex-row gap-4 items-center justify-center`}
+                      >
+                        {/* {expand ? (
+                          <Image
+                            src={ShrinkIcon}
+                            onClick={() => {
+                              setexpand(false);
+                            }}
+                            alt="Expand"
+                            className={`w-6 h-6 cursor-pointer`}
+                          />
+                        ) : (
+                          <Image
+                            src={ExpandIcon}
+                            onClick={() => {
+                              setexpand(true);
+                            }}
+                            alt="Expand"
+                            className={`w-12 h-6 cursor-pointer`}
+                          />
+                        )} */}
+
+                        <XCircleIcon
+                          className="w-fit h-7 text-red-600  cursor-pointer"
+                          onClick={() => {
+                            setshowprof(false);
+                            setdoctor({});
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-full flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div
+                        className={`flex gap-4 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        } ${width < 700 ? "flex-col" : "flex-row"}`}
+                      >
+                        <div
+                          className={`flex flex-col gap-2 ${
+                            width < 700 ? "w-full" : "w-1/2"
+                          }`}
+                        >
+                          <p
+                            className={` ${outfit.className} font-normal text-base text-black/80`}
+                          >
+                            NAME
+                          </p>
+                          <p
+                            className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                          >
+                            {doctor?.name}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <p
+                          className={` ${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          UEID
+                        </p>
+                        <p
+                          className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                        >
+                          {doctor?.uhid}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div
+                        className={`flex flex-col gap-8 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <div
+                          className={`w-full flex  gap-8 ${
+                            width < 700 ? "flex-col" : "flex-row"
+                          }`}
+                        >
+                          {/* Gender Dropdown */}
+                          <div
+                            className={`flex flex-col gap-2 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              GENDER
+                            </p>
+                            <p
+                              className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  capitalize
+                                  ${inter.className}`}
+                            >
+                              {doctor?.gender}
+                            </p>
+                          </div>
+
+                          {/* Date of Birth Input */}
+                          <div
+                            className={`flex flex-col gap-2.5 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              DATE OF BIRTH
+                            </p>
+                            <p
+                              className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                            >
+                              {doctor?.birth_date}
+                            </p>
+                          </div>
+                          
+                          
+                          
+                        </div>
+
+                        <div className={`w-full flex flex-col gap-2`}>
+                          <p
+                          className={`${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          EMAIL
+                        </p>
+
+                        <span className="text-black/90">
+                          {doctor?.email || "NA"}
+                        </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 justify-between ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <div
+                          className={`w-full flex  gap-2 ${
+                            width < 700 ? "flex-col" : "flex-row"
+                          }`}
+                        >
+                          <div
+                            className={`flex flex-col justify-between gap-2  ${
+                              width < 700 ? "w-full" : "w-4/7"
+                            }`}
+                          >
+                            
+
+                            <div className={`w-full flex flex-col gap-2`}>
+                              <p
+                                className={`${outfit.className} font-normal text-base text-black/80`}
+                              >
+                                PHONE NUMBER
+                              </p>
+
+                              <span className="text-black/90">
+                                {doctor?.phone || "NA"}
+                              </span>
+                            </div>
+                          </div>
+
+                
+                        </div>
+                      </div>
+                    </div>
+
+           
+                  </div>
+                  {showAlert && (
+                    <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
+                      <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-6 py-3 rounded-lg shadow-lg animate-fade-in-out">
+                        {alertMessage}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <style>
+              {`
+                .inline-scroll::-webkit-scrollbar {
+                  width: 12px;
+                }
+                .inline-scroll::-webkit-scrollbar-track {
+                  background: transparent;
+                }
+                .inline-scroll::-webkit-scrollbar-thumb {
+                  background-color: #076C40;
+                  border-radius: 8px;
+                }
+          
+                .inline-scroll {
+                  scrollbar-color: #076C40 transparent;
+                }
+              `}
+            </style>
+          </div>,
+          document.body // portal target
+        )}
+      
 
       <style>
         {`

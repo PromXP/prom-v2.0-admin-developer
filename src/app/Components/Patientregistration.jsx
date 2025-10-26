@@ -29,6 +29,7 @@ import {
   XMarkIcon,
   XCircleIcon,
   TrashIcon,
+  CheckBadgeIcon,
 } from "@heroicons/react/16/solid";
 
 const raleway = Raleway({
@@ -117,7 +118,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     selectedFunding: useRef(null),
   };
   const [errorField, setErrorField] = useState(null);
-
 
   const dateInputRef = useRef(null);
 
@@ -283,7 +283,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       // // Block future dates (optional)
       if (manualDate < today) {
         showWarning("Past date is selected");
-
       }
 
       // ✅ Keep final format yyyy-mm-dd
@@ -307,7 +306,6 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     const today = new Date().toISOString().split("T")[0];
     if (value < today) {
       showWarning("Past date is selected");
-
     }
 
     setsurgeryDate(value); // sync manual input
@@ -530,62 +528,66 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
       ) {
         showWarning(field.message);
         // 🔽 Scroll to the corresponding field smoothly
-    const fieldKey = field.message
-      .toLowerCase()
-      .replace(/[^a-z]/g, ""); // crude mapping, we’ll fix below
+        const fieldKey = field.message.toLowerCase().replace(/[^a-z]/g, ""); // crude mapping, we’ll fix below
 
-    // Find the actual ref key by mapping message → ref name
-    const messageToRef = {
-      "first name is required": refs.firstName,
-      "last name is required": refs.lastName,
-      "patient uhid is required": refs.uhid,
-      "blood group is required": refs.selectedOptiondrop,
-      "gender is required": refs.selectedGender,
-      "date of birth is required": refs.selectedDate,
-      "address is required": refs.address,
-      "phone number is required": refs.phone,
-      "email is required": refs.email,
-      "height is required": refs.heightbmi,
-      "weight is required": refs.weight,
-      "id proof is required": refs.selectedIDs,
-      "surgery date is required": refs.surgerydate,
-      "operation funding is required": refs.selectedFunding,
-    };
+        // Find the actual ref key by mapping message → ref name
+        const messageToRef = {
+          "first name is required": refs.firstName,
+          "last name is required": refs.lastName,
+          "patient uhid is required": refs.uhid,
+          "blood group is required": refs.selectedOptiondrop,
+          "gender is required": refs.selectedGender,
+          "date of birth is required": refs.selectedDate,
+          "address is required": refs.address,
+          "phone number is required": refs.phone,
+          "email is required": refs.email,
+          "height is required": refs.heightbmi,
+          "weight is required": refs.weight,
+          "id proof is required": refs.selectedIDs,
+          "surgery date is required": refs.surgerydate,
+          "operation funding is required": refs.selectedFunding,
+        };
 
-    let targetRef = messageToRef[field.message.toLowerCase()];
-    // ✅ Special case for patient side (Left/Right Knee)
-      if (field.message.toLowerCase().includes("patient side")) {
-        // Try to scroll to left knee checkbox
-        targetRef = refs.leftKnee || refs.rightKnee;
-      }
-    if (targetRef?.current) {
-      targetRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      targetRef.current.focus?.();
-      // Highlight error visually
-      setErrorField(targetRef.current);
-      targetRef.current.classList.add("ring-2", "ring-red-500");
+        let targetRef = messageToRef[field.message.toLowerCase()];
+        // ✅ Special case for patient side (Left/Right Knee)
+        if (field.message.toLowerCase().includes("patient side")) {
+          // Try to scroll to left knee checkbox
+          targetRef = refs.leftKnee || refs.rightKnee;
+        }
+        if (targetRef?.current) {
+          targetRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          targetRef.current.focus?.();
+          // Highlight error visually
+          setErrorField(targetRef.current);
+          targetRef.current.classList.add("ring-2", "ring-red-500");
 
-      // Remove highlight after 2s
-      setTimeout(() => {
-        targetRef.current.classList.remove("ring-2", "ring-red-500");
-        setErrorField(null);
-      }, 2000);
-    }
+          // Remove highlight after 2s
+          setTimeout(() => {
+            targetRef.current.classList.remove("ring-2", "ring-red-500");
+            setErrorField(null);
+          }, 2000);
+        }
         return;
       }
     }
 
     // ✅ Special checks
-   if (phone.length !== 10) {
-    showWarning("Phone number must be 10 digits");
-    refs.phone?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    refs.phone?.current?.classList.add("ring-2", "ring-red-500");
-    setTimeout(() => refs.phone?.current?.classList.remove("ring-2", "ring-red-500"), 2000);
-    return;
-  }
+    if (phone.length !== 10) {
+      showWarning("Phone number must be 10 digits");
+      refs.phone?.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      refs.phone?.current?.classList.add("ring-2", "ring-red-500");
+      setTimeout(
+        () => refs.phone?.current?.classList.remove("ring-2", "ring-red-500"),
+        2000
+      );
+      return;
+    }
 
     if (alterphone && alterphone.length !== 10) {
       showWarning("Alternate phone number must be 10 digits");
@@ -598,13 +600,20 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     }
 
     const anyFilled = Object.values(selectedIDs).some((val) => val !== "NA");
-  if (!anyFilled) {
-    showWarning("Please fill at least one ID Proof");
-    refs.selectedIDs?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    refs.selectedIDs?.current?.classList.add("ring-2", "ring-red-500");
-    setTimeout(() => refs.selectedIDs?.current?.classList.remove("ring-2", "ring-red-500"), 2000);
-    return;
-  }
+    if (!anyFilled) {
+      showWarning("Please fill at least one ID Proof");
+      refs.selectedIDs?.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      refs.selectedIDs?.current?.classList.add("ring-2", "ring-red-500");
+      setTimeout(
+        () =>
+          refs.selectedIDs?.current?.classList.remove("ring-2", "ring-red-500"),
+        2000
+      );
+      return;
+    }
 
     // ✅ Build payload after validation
     const payload = {
@@ -665,6 +674,92 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
     } catch (error) {
       // console.error("❌ Error creating patient:", error.response.data);
       showWarning(error.response.data.detail.replace(" in MongoDB", ""));
+    }
+  };
+
+  const [checkdupmob, setcheckdupmob] = useState("2");
+  const [checkdupemail, setcheckdupemail] = useState("2");
+  const [checkdupuhid, setcheckdupuhid] = useState("2");
+
+  const handlecheckduplicatemobile = async ({ field, value, role }) => {
+    const payload = { field: field, value: value, role: role };
+    if (!value) {
+      showWarning("Enter mobile number");
+      setcheckdupmob("2");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/check-duplicate`,
+        payload
+      );
+
+      // 👇 Correct: use res.data.exists
+      if (res.data.exists) {
+        setcheckdupmob("0"); // duplicate found
+        setPhone("");
+        showWarning("Mobile number already existing");
+      } else if (!res.data.exists) {
+        setcheckdupmob("1"); // unique
+      }
+    } catch (error) {
+      setcheckdupmob("2");
+      showWarning("Error checking duplicate");
+    }
+  };
+
+  const handlecheckduplicateemail = async ({ field, value, role }) => {
+    const payload = { field: field, value: value, role: role };
+    if (!value) {
+      showWarning("Enter email");
+      setcheckdupemail("2");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/check-duplicate`,
+        payload
+      );
+
+      // 👇 Correct: use res.data.exists
+      if (res.data.exists) {
+        setcheckdupemail("0"); // duplicate found
+        setEmail("");
+        showWarning("Email already existing");
+      } else {
+        setcheckdupemail("1"); // unique
+      }
+    } catch (error) {
+      showWarning("Error checking duplicate");
+    }
+  };
+
+  const handlecheckduplicateuhid = async ({ field, value, role }) => {
+    const payload = { field: field, value: value, role: role };
+    if (!value) {
+      showWarning("Enter UHID");
+      setcheckdupuhid("2");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/check-duplicate`,
+        payload
+      );
+
+      // 👇 Correct: use res.data.exists
+      if (res.data.exists) {
+        setcheckdupuhid("0"); // duplicate found
+        setUhid("");
+        showWarning("UHID already existing");
+      } else {
+        setcheckdupuhid("1"); // unique
+      }
+    } catch (error) {
+      showWarning("Error checking duplicate");
     }
   };
 
@@ -803,7 +898,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       First Name <span className="text-red-500">*</span>
                     </p>
                     <input
-                    ref={refs.firstName}
+                      ref={refs.firstName}
                       type="text"
                       className={`
                         w-full
@@ -877,10 +972,11 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                   >
                     UHID <span className="text-red-500">*</span>
                   </p>
-                  <input
-                    ref={refs.uhid}
-                    type="text"
-                    className={`
+                  <div className="relative w-full">
+                    <input
+                      ref={refs.uhid}
+                      type="text"
+                      className={`
                       w-full
                       bg-transparent
                       border-b-2
@@ -891,15 +987,30 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       text-lg
                       ${inter.className}
                     `}
-                    maxLength={20}
-                    value={uhid}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      // Allow only letters, numbers, and hyphens
-                      const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
-                      setUhid(filtered);
-                    }}
-                  />
+                      maxLength={20}
+                      value={uhid}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow only letters, numbers, and hyphens
+                        const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
+                        setUhid(filtered);
+                      }}
+                      onBlur={() => {
+                        handlecheckduplicateuhid({
+                          field: "uhid",
+                          value: uhid,
+                          role: "patient",
+                        });
+                      }}
+                    />
+                    {checkdupuhid === "1" ? (
+                      <CheckBadgeIcon className="w-5 h-5 text-green-400 absolute right-2 top-1.5" />
+                    ) : (
+                      checkdupuhid === "0" && (
+                        <XCircleIcon className="w-5 h-5 text-red-400 absolute right-2 top-1.5" />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1057,13 +1168,14 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       Phone Number <span className="text-red-500">*</span>
                     </p>
-                    <input
-                      ref={refs.phone}
-                      type="tel"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={10}
-                      className={`
+                    <div className="relative w-full">
+                      <input
+                        ref={refs.phone}
+                        type="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={10}
+                        className={`
                       w-full
                       bg-transparent
                       border-b-2
@@ -1074,18 +1186,32 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       text-lg
                       ${inter.className}
                     `}
-                      value={phone}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, ""); // keep only digits
-                        setPhone(value);
-                      }}
-                      onBlur={() => {
-                        if (phone && phone.length !== 10) {
-                          showWarning("Phone number must be 10 digits");
-                          return;
-                        }
-                      }}
-                    />
+                        value={phone}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, ""); // keep only digits
+                          setPhone(value);
+                        }}
+                        onBlur={() => {
+                          if (phone && phone.length !== 10) {
+                            showWarning("Phone number must be 10 digits");
+                            setcheckdupmob("2");
+                            return;
+                          }
+                          handlecheckduplicatemobile({
+                            field: "mobile",
+                            value: phone,
+                            role: "patient",
+                          });
+                        }}
+                      />
+                      {checkdupmob === "1" ? (
+                        <CheckBadgeIcon className="w-5 h-5 text-green-400 absolute right-2 top-1.5" />
+                      ) : (
+                        checkdupmob === "0" && (
+                          <XCircleIcon className="w-5 h-5 text-red-400 absolute right-2 top-1.5" />
+                        )
+                      )}
+                    </div>
                   </div>
 
                   <div className={`w-full flex flex-col gap-2`}>
@@ -1140,10 +1266,11 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       Email <span className="text-red-500">*</span>
                     </p>
-                    <input
-                      ref={refs.email}
-                      type="email"
-                      className={`
+                    <div className="relative w-full">
+                      <input
+                        ref={refs.email}
+                        type="email"
+                        className={`
                       w-full
                       bg-transparent
                       border-b-2
@@ -1154,16 +1281,30 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                       text-lg
                       ${inter.className}
                     `}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={() => {
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                        if (email && !emailRegex.test(email)) {
-                          showWarning("Please enter a valid email address.");
-                          setEmail("");
-                        }
-                      }}
-                    />
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onBlur={() => {
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          if (email && !emailRegex.test(email)) {
+                            showWarning("Please enter a valid email address.");
+                            setEmail("");
+                            return;
+                          }
+                          handlecheckduplicateemail({
+                            field: "email",
+                            value: phone,
+                            role: "patient",
+                          });
+                        }}
+                      />
+                      {checkdupemail === "1" ? (
+                        <CheckBadgeIcon className="w-5 h-5 text-green-400 absolute right-2 top-1.5" />
+                      ) : (
+                        checkdupemail === "0" && (
+                          <XCircleIcon className="w-5 h-5 text-red-400 absolute right-2 top-1.5" />
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -1566,7 +1707,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         className={` ${outfit.className} flex items-center gap-2 text-black/80 text-lg cursor-pointer`}
                       >
                         <input
-                         ref={refs.leftKnee}
+                          ref={refs.leftKnee}
                           type="checkbox"
                           checked={selectedKnees.includes("LEFT")}
                           onChange={() => toggleKnee("LEFT")}
@@ -1578,7 +1719,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                         className={` ${outfit.className} flex items-center gap-2 text-black/80 text-lg cursor-pointer`}
                       >
                         <input
-                         ref={refs.rightKnee}
+                          ref={refs.rightKnee}
                           type="checkbox"
                           checked={selectedKnees.includes("RIGHT")}
                           onChange={() => toggleKnee("RIGHT")}
@@ -1655,7 +1796,7 @@ const Patientregistration = ({ isOpenacc, onCloseacc }) => {
                 }`}
               >
                 <button
-                  className={`text-black/80 font-normal ${
+                  className={`text-black/80 font-normal border-1 border-gray-300 rounded-sm py-2 ${
                     outfit.className
                   } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/7"}`}
                   onClick={clearAllFields}

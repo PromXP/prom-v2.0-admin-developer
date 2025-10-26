@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { Raleway, Inter, Poppins } from "next/font/google";
+import { Raleway, Inter, Poppins, Outfit } from "next/font/google";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
 import MainBg from "@/app/Assets/mainbg.png";
@@ -32,6 +32,9 @@ import Notify from "@/app/Assets/notify.png";
 import Call from "@/app/Assets/call.png";
 import Error from "@/app/Assets/error.png";
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
+import ExpandIcon from "@/app/Assets/expand.png";
+import ShrinkIcon from "@/app/Assets/shrink.png";
+import Doctorassign from "@/app/Assets/doctorassign.png";
 
 import {
   ChevronRightIcon,
@@ -47,6 +50,7 @@ import {
   ClipboardDocumentCheckIcon,
   XMarkIcon,
   XCircleIcon,
+  StarIcon,
 } from "@heroicons/react/16/solid";
 import Patientregistration from "./Patientregistration";
 import Doctorregistration from "./Doctorregistration";
@@ -67,6 +71,12 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "600", "700"], // add weights as needed
   variable: "--font-inter", // optional CSS variable name
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"], // add weights as needed
+  variable: "--font-outfit", // optional CSS variable name
 });
 
 const Doctorlist = ({
@@ -123,8 +133,8 @@ const Doctorlist = ({
             doc?.photo && doc?.photo !== "NA"
               ? doc?.photo
               : doc.gender === "male"
-              ? Manavatar
-              : Womanavatar,
+              ? Doctorassign
+              : Doctorassign,
         }));
         // console.log(doctorPatients);
         setPatients(doctorPatients);
@@ -336,6 +346,7 @@ const Doctorlist = ({
 
   const [showprof, setshowprof] = useState(false);
   const [profpat, setshowprofpat] = useState([]);
+  const [expand, setexpand] = useState(false);
 
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
@@ -365,7 +376,22 @@ const Doctorlist = ({
   const isDefaultFilter =
     sortOrder === "low_to_high" &&
     selectedGender === "All" &&
-    ageRange.min === 23 && ageRange.max === 80;
+    ageRange.min === 23 &&
+    ageRange.max === 80;
+
+  const [doctor, setdoctor] = useState({});
+
+  const fetchdoctor = async ({ uhid }) => {
+    try {
+      const res = await axios.get(`${API_URL}getdoctor/${uhid}`);
+      showWarning("Doctor fetched");
+
+      const apiPatients = res.data || {};
+      setdoctor(apiPatients);
+    } catch (error) {
+      showWarning("Failed to fetch doctor");
+    }
+  };
 
   return (
     <>
@@ -583,7 +609,6 @@ const Doctorlist = ({
                         scrollbarColor: "#888 transparent", // Firefox
                       }}
                     >
-
                       {/* Gender Filter */}
                       <div className="mb-4">
                         <p className="font-semibold mb-1">Gender</p>
@@ -591,8 +616,10 @@ const Doctorlist = ({
                           <label
                             key={gender}
                             className={`inline-flex items-center mr-4 cursor-pointer ${
-                            selectedGender === gender ? "font-bold text-lg" : ""
-                          }`}
+                              selectedGender === gender
+                                ? "font-bold text-lg"
+                                : ""
+                            }`}
                           >
                             <input
                               type="radio"
@@ -614,7 +641,9 @@ const Doctorlist = ({
                           <input
                             type="number"
                             placeholder="Min"
-                            className={`w-16 border px-2 py-1 rounded text-sm ${ageRange.min > 23 ? "font-bold" : ""}`}
+                            className={`w-16 border px-2 py-1 rounded text-sm ${
+                              ageRange.min > 23 ? "font-bold" : ""
+                            }`}
                             value={ageRange.min}
                             onChange={(e) => {
                               // Remove decimals by parsing integer
@@ -630,7 +659,9 @@ const Doctorlist = ({
                           <input
                             type="number"
                             placeholder="Max"
-                            className={`w-16 border px-2 py-1 rounded text-sm ${ageRange.max < 80 ? "font-bold" : ""}`}
+                            className={`w-16 border px-2 py-1 rounded text-sm ${
+                              ageRange.max < 80 ? "font-bold" : ""
+                            }`}
                             value={ageRange.max}
                             onChange={(e) => {
                               // Remove decimals by parsing integer
@@ -655,8 +686,8 @@ const Doctorlist = ({
                           <label
                             key={value}
                             className={`inline-flex items-center mr-4 cursor-pointer ${
-                            sortOrder === value ? "font-bold text-lg" : ""
-                          }`}
+                              sortOrder === value ? "font-bold text-lg" : ""
+                            }`}
                             title="Sort based on overall patients compliance rate"
                           >
                             <input
@@ -784,7 +815,7 @@ const Doctorlist = ({
                   display: "grid",
                   gridTemplateColumns: loading
                     ? "repeat(auto-fit, minmax(220px, 1fr))"
-                    : "repeat(auto-fit, 260px)",
+                    : "repeat(auto-fit, 290px)",
                   justifyContent: width > 620 ? "start" : "center", // align cards to left if fewer
                   gap: "1.5rem",
                 }}
@@ -821,118 +852,136 @@ const Doctorlist = ({
                   paginatedPatients.map((patient, index) => (
                     <div
                       key={index}
-                      className="w-full h-[260px]  bg-white p-4 flex flex-col justify-between gap-2 rounded-md"
+                      className="w-full h-[230px]  bg-white p-2 flex flex-col justify-between gap-2 rounded-xl"
                       style={{ minWidth: 0 }} // prevent overflow
                     >
                       {/* LEFT - Avatar + Name + Age */}
-                      <div className="flex items-center gap-4">
-                        <Image
+                      <div className="flex flex-col items-center gap-2 w-full h-full ">
+                        <div className={`w-full h-3/5 relative`}>
+                          <Image
                           src={patient.avatar}
                           alt="Avatar"
-                          className="rounded-full cursor-pointer w-12 h-12"
+                          className=" cursor-pointer w-full h-full rounded-xl"
                           width={40}
-                          height={40}
+                          height={20}
                           onClick={() => {
+                            if (!patient?.uhid) {
+                              showWarning("UHID not found");
+                              return;
+                            }
                             setshowprof(true);
-                            setshowprofpat(patient);
+                            fetchdoctor({ uhid: patient.uhid });
                           }}
-                          title="Edit profile picture"
+                          title="Doctor profile"
                         />
-                        <div className="flex flex-col gap-3">
-                          <p
-                            className={`${raleway.className} text-[#475467] font-semibold text-lg`}
-                          >
-                            Dr. {patient.name}
-                          </p>
-                          <p
-                            className={`${poppins.className} font-normal text-sm text-[#475467]`}
-                          >
-                            {patient.age}, {patient.gender}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* RIGHT - UHID + Period + Status + Icons */}
+                                              {/* RIGHT - UHID + Period + Status + Icons */}
                       <div
-                        className={`flex flex-col justify-center items-center `}
+                        className={`flex flex-col justify-center items-center absolute top-2 right-3 rounded-sm px-2 py-1 ${patient.compliance === "NA"?"bg-blue-500":""}`}
+                        style={{backgroundColor: getComplianceColor(
+                                        patient.compliance || 0
+                                      )}}
                       >
                         <p
-                          className={`${poppins.className} text-base font-medium text-[#475467] opacity-50`}
+                          className={`${poppins.className} text-xs font-medium text-white`}
                         >
                           {patient.uhid}
                         </p>
                       </div>
 
-                      <div
-                        className={`flex flex-row justify-between ${
-                          shownotassigned ? "items-end" : "items-center"
-                        }`}
-                      >
-                        <div
-                          className={`${inter.className} font-semibold text-[#373737] text-sm w-1/2`}
-                        >
-                          {patient.count} Patients
                         </div>
-
-                        {/* Progress Bar with Hover */}
-                        {patient.compliance === "NA" ? (
+                        
+                        <div className="w-full flex flex-row justify-between h-2/5 gap-2">
+                          <div className="flex flex-col gap-2 w-5/9">
+                            <p
+                              className={`${raleway.className} text-blue-500 font-semibold text-base`}
+                            >
+                              Dr. {patient.name}
+                            </p>
+                            <p
+                              className={`${poppins.className} font-normal text-sm space-x-2 text-white`}
+                            >
+                              <span className="bg-blue-500 px-2 py-1 rounded-full">
+                                Age: {patient.age}
+                              </span>
+                              <span className="bg-blue-500 rounded-full px-2 py-1">
+                                {" "}
+                                {patient.gender}
+                              </span>
+                            </p>
+                          </div>
                           <div
-                            className="w-1/2 flex flex-col items-end relative group"
-                            title="Overall patient's compliance"
+                            className={`flex flex-col w-3/9 h-2/3 items-end justify-between gap-2`}
                           >
                             <div
-                              className={`${poppins.className} absolute -top-5 left-0 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-sm font-semibold text-black`}
+                              className={`${inter.className} space-x-2 font-semibold text-[#373737] text-xs w-full flex items-center flex-row justify-between`}
                             >
-                              No patients assigned
-                            </div>
-                            <Image
-                              src={Error}
-                              alt="Not assigned"
-                              className={`w-6 h-6`}
-                            />
-
-                            <div className="relative w-full h-1.5 overflow-hidden bg-white ">
-                              {/* Filled Progress */}
-                              <div
-                                className="h-3/4 bg-[#E5E5E5]"
-                                style={{
-                                  width: "100%",
-                                  backgroundImage: "url('/stripes.svg')",
-                                  backgroundRepeat: "repeat",
-                                  backgroundSize: "20px 20px",
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            className="w-1/2 flex flex-col items-center relative group "
-                            title="Overall patient's compliance"
-                          >
-                            {/* Hover Percentage Text */}
-                            <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
-                              {patient.compliance || 0}%
+                              {patient.compliance === "NA" ? (
+                                <Image
+                                  src={Error}
+                                  alt="Not assigned"
+                                  className="w-5 h-5"
+                                  title="No Patient's assigned"
+                                />
+                              ) : (
+                                <StarIcon className="w-5 h-5" style={{ color: getComplianceColor(
+                                        patient.compliance || 0
+                                      )}} />
+                              )}
+                              <span>{patient.count} Patients</span>
                             </div>
 
-                            {/* Progress Bar Container */}
-                            <div className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer">
-                              {/* Filled Progress */}
+                            {/* Progress Bar with Hover */}
+                            {patient.compliance === "NA" ? (
                               <div
-                                className="h-full bg-[#EEDF11]"
-                                style={{
-                                  width: `${patient.compliance || 0}%`,
-                                  backgroundColor: getComplianceColor(
-                                    patient.compliance || 0
-                                  ),
-                                  backgroundImage: "url('/stripes.svg')",
-                                  backgroundRepeat: "repeat",
-                                  backgroundSize: "20px 20px",
-                                }}
-                              ></div>
-                            </div>
+                                className="w-full flex flex-col items-end relative group"
+                                title="Overall patient's compliance"
+                              >
+
+                                <div className="relative w-full h-1.5 overflow-hidden bg-white ">
+                                  {/* Filled Progress */}
+                                  <div
+                                    className="h-3/4 bg-[#E5E5E5]"
+                                    style={{
+                                      width: "100%",
+                                      backgroundImage: "url('/stripes.svg')",
+                                      backgroundRepeat: "repeat",
+                                      backgroundSize: "20px 20px",
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div
+                                className="w-full flex flex-col items-center relative group "
+                                title="Overall patient's compliance"
+                              >
+                                {/* Hover Percentage Text */}
+                                <div className="absolute -top-6 left-0 transform  opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out text-xs font-semibold text-black border-2 border-black px-3 rounded-lg">
+                                  {patient.compliance || 0}%
+                                </div>
+
+                                {/* Progress Bar Container */}
+                                <div className="relative w-full h-1.5 overflow-hidden bg-[#E5E5E5] cursor-pointer">
+                                  {/* Filled Progress */}
+                                  <div
+                                    className="h-full bg-[#EEDF11]"
+                                    style={{
+                                      width: `${patient.compliance || 0}%`,
+                                      backgroundColor: getComplianceColor(
+                                        patient.compliance || 0
+                                      ),
+                                      backgroundImage: "url('/stripes.svg')",
+                                      backgroundRepeat: "repeat",
+                                      backgroundSize: "20px 20px",
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
+
                     </div>
                   ))
                 )}
@@ -954,19 +1003,19 @@ const Doctorlist = ({
           >
             <div
               className={`
-                  min-h-[100vh]  flex flex-col items-center justify-center mx-auto my-auto
-                  ${width < 950 ? "gap-4 w-full" : "w-1/3"}
-                  p-4
-                `}
+                    h-screen  flex flex-col items-center justify-center mx-auto my-auto
+                    ${width < 950 ? "gap-4 w-full" : "w-5/6"}
+                    ${expand ? "w-full" : "p-4"}
+                  `}
             >
               <div
                 className={`w-full bg-[#FCFCFC]  p-4  overflow-y-auto overflow-x-hidden inline-scroll ${
                   width < 1095 ? "flex flex-col gap-4" : ""
-                } max-h-[92vh] rounded-2xl`}
+                } ${expand ? "h-full" : "max-h-[92vh] rounded-2xl"}`}
               >
                 <div
                   className={`w-full bg-[#FCFCFC]  ${
-                    width < 760 ? "h-fit" : "h-[80%]"
+                    width < 760 ? "h-fit" : "h-full"
                   } `}
                 >
                   <div
@@ -978,21 +1027,90 @@ const Doctorlist = ({
                       <p
                         className={`${inter.className} text-2xl font-semibold text-black`}
                       >
-                        Doctor Profile Image
+                        Doctor Profile
                       </p>
-
                       <div
                         className={`flex flex-row gap-4 items-center justify-center`}
                       >
+                        {/* {expand ? (
+                          <Image
+                            src={ShrinkIcon}
+                            onClick={() => {
+                              setexpand(false);
+                            }}
+                            alt="Expand"
+                            className={`w-6 h-6 cursor-pointer`}
+                          />
+                        ) : (
+                          <Image
+                            src={ExpandIcon}
+                            onClick={() => {
+                              setexpand(true);
+                            }}
+                            alt="Expand"
+                            className={`w-12 h-6 cursor-pointer`}
+                          />
+                        )} */}
+
                         <XCircleIcon
-                          className="w-5 h-5 cursor-pointer text-red-500"
+                          className="w-fit h-7 text-red-600  cursor-pointer"
                           onClick={() => {
                             setshowprof(false);
-                            if (reloadreq) {
-                              window.location.reload();
-                            }
+                            setdoctor({});
                           }}
                         />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-full flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div
+                        className={`flex gap-4 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        } ${width < 700 ? "flex-col" : "flex-row"}`}
+                      >
+                        <div
+                          className={`flex flex-col gap-2 ${
+                            width < 700 ? "w-full" : "w-1/2"
+                          }`}
+                        >
+                          <p
+                            className={` ${outfit.className} font-normal text-base text-black/80`}
+                          >
+                            NAME
+                          </p>
+                          <p
+                            className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                          >
+                            {doctor?.name}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <p
+                          className={` ${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          UEID
+                        </p>
+                        <p
+                          className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                        >
+                          {doctor?.uhid}
+                        </p>
                       </div>
                     </div>
 
@@ -1002,7 +1120,96 @@ const Doctorlist = ({
                       }`}
                     >
                       <div
-                        className={`flex flex-col gap-2 justify-between w-full`}
+                        className={`flex flex-col gap-8 ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
+                      >
+                        <div
+                          className={`w-full flex  gap-8 ${
+                            width < 700 ? "flex-col" : "flex-row"
+                          }`}
+                        >
+                          {/* Gender Dropdown */}
+                          <div
+                            className={`flex flex-col gap-2 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              GENDER
+                            </p>
+                            <p
+                              className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  capitalize
+                                  ${inter.className}`}
+                            >
+                              {doctor?.gender}
+                            </p>
+                          </div>
+
+                          {/* Date of Birth Input */}
+                          <div
+                            className={`flex flex-col gap-2.5 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              DATE OF BIRTH
+                            </p>
+                            <p
+                              className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                            >
+                              {doctor?.birth_date}
+                            </p>
+                          </div>
+
+                          <div
+                            className={`flex flex-col gap-2.5 ${
+                              width < 700 ? "w-full" : "w-1/3"
+                            }`}
+                          >
+                            <p
+                              className={`${outfit.className} font-normal text-base text-black/80`}
+                            >
+                              BLOOD GROUP
+                            </p>
+                            <p
+                              className={`w-full text-black
+                                  font-medium
+                                  text-lg
+                                  ${inter.className}`}
+                            >
+                              {doctor?.blood_group}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className={`w-full flex flex-col gap-2`}>
+                          <p
+                            className={`${outfit.className} font-normal text-base text-black/80`}
+                          >
+                            EMAIL
+                          </p>
+
+                          <span className="text-black/90">
+                            {doctor?.email || "NA"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex flex-col gap-2 justify-between ${
+                          width >= 1200 ? "w-1/2" : "w-full"
+                        }`}
                       >
                         <div
                           className={`w-full flex  gap-2 ${
@@ -1010,7 +1217,39 @@ const Doctorlist = ({
                           }`}
                         >
                           <div
-                            className={`flex flex-col items-center gap-2 w-full`}
+                            className={`flex flex-col justify-between gap-2  ${
+                              width < 700 ? "w-full" : "w-4/7"
+                            }`}
+                          >
+                            <div className={`flex flex-col gap-2 w-full`}>
+                              <p
+                                className={`${outfit.className} font-normal text-base text-black/80`}
+                              >
+                                Council Number
+                              </p>
+
+                              <span className="text-black/90">
+                                {doctor?.council_number || "Not provided"}
+                              </span>
+                            </div>
+
+                            <div className={`w-full flex flex-col gap-2`}>
+                              <p
+                                className={`${outfit.className} font-normal text-base text-black/80`}
+                              >
+                                PHONE NUMBER
+                              </p>
+
+                              <span className="text-black/90">
+                                {doctor?.phone || "NA"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div
+                            className={`flex flex-col items-center gap-2 ${
+                              width < 700 ? "w-full" : "w-4/7"
+                            }`}
                           >
                             <div
                               className="w-40 h-40 cursor-pointer"
@@ -1034,7 +1273,14 @@ const Doctorlist = ({
                               ) : (
                                 // Next.js Image for static or remote URLs
                                 <Image
-                                  src={profpat?.avatar}
+                                  src={
+                                    doctor?.photo_url &&
+                                    doctor?.photo_url !== "NA"
+                                      ? doctor?.photo_url
+                                      : doctor?.gender === "male"
+                                      ? Manavatar
+                                      : Womanavatar
+                                  }
                                   alt="Upload or Capture"
                                   layout="fill"
                                   objectFit="cover"
@@ -1084,6 +1330,24 @@ const Doctorlist = ({
                         </div>
                       </div>
                     </div>
+
+                    <div
+                      className={`flex gap-12 ${
+                        width >= 1200 ? "flex-row" : "flex-col"
+                      }`}
+                    >
+                      <div className={`w-full flex flex-col gap-2`}>
+                        <p
+                          className={`${outfit.className} font-normal text-base text-black/80`}
+                        >
+                          SPECIALIZATION
+                        </p>
+
+                        <span className="text-black/90">
+                          {doctor?.specialization || "NA"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   {showAlert && (
                     <div className="fixed top-8 left-1/2 transform -translate-x-1/2 z-50">
@@ -1097,21 +1361,21 @@ const Doctorlist = ({
             </div>
             <style>
               {`
-              .inline-scroll::-webkit-scrollbar {
-                width: 12px;
-              }
-              .inline-scroll::-webkit-scrollbar-track {
-                background: transparent;
-              }
-              .inline-scroll::-webkit-scrollbar-thumb {
-                background-color: #076C40;
-                border-radius: 8px;
-              }
-        
-              .inline-scroll {
-                scrollbar-color: #076C40 transparent;
-              }
-            `}
+                .inline-scroll::-webkit-scrollbar {
+                  width: 12px;
+                }
+                .inline-scroll::-webkit-scrollbar-track {
+                  background: transparent;
+                }
+                .inline-scroll::-webkit-scrollbar-thumb {
+                  background-color: #076C40;
+                  border-radius: 8px;
+                }
+          
+                .inline-scroll {
+                  scrollbar-color: #076C40 transparent;
+                }
+              `}
             </style>
           </div>,
           document.body // portal target

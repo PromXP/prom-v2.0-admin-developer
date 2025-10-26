@@ -497,7 +497,7 @@ const Sendreminder = ({ isOpenreminder, onClosereminder, selecteduhid }) => {
                   }`}
                 >
                   <button
-                    className={`text-black/80 font-normal ${
+                    className={`text-black/80 font-normal border-1 border-gray-300 py-2 ${
                       outfit.className
                     } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/3"}`}
                     onClick={() => {

@@ -303,7 +303,7 @@ const Activationstatus = ({
                   }`}
                 >
                   <button
-                    className={`text-black/80 font-normal ${
+                    className={`text-black/80 border-1 border-gray-300 py-2 font-normal ${
                       outfit.className
                     } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
                     onClick={() => {

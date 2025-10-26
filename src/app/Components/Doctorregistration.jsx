@@ -12,7 +12,7 @@ import { Poppins, Raleway, Inter, Outfit } from "next/font/google";
 import CloseIcon from "@/app/Assets/closeiconwindow.png";
 import ExpandIcon from "@/app/Assets/expand.png";
 import ShrinkIcon from "@/app/Assets/shrink.png";
-import { XCircleIcon } from "@heroicons/react/16/solid";
+import { CheckBadgeIcon, XCircleIcon } from "@heroicons/react/16/solid";
 
 const raleway = Raleway({
   subsets: ["latin"],
@@ -104,17 +104,16 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
   const calendarRef = useRef(null);
 
   const refs = {
-  firstName: useRef(null),
-  lastName: useRef(null),
-  ueid: useRef(null),
-  designation: useRef(null),
-  medicalcouncilnumber: useRef(null),
-  selectedDate: useRef(null),
-  email: useRef(null),
-  selectedGender: useRef(null),
-  phone: useRef(null),
-};
-
+    firstName: useRef(null),
+    lastName: useRef(null),
+    ueid: useRef(null),
+    designation: useRef(null),
+    medicalcouncilnumber: useRef(null),
+    selectedDate: useRef(null),
+    email: useRef(null),
+    selectedGender: useRef(null),
+    phone: useRef(null),
+  };
 
   const handleManualDateChange = (e) => {
     let value = e.target.value;
@@ -156,14 +155,13 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
         return;
       }
 
-       let age = today.getFullYear() - manualDate.getFullYear();
+      let age = today.getFullYear() - manualDate.getFullYear();
 
-
-    if (age < 23) {
-      showWarning("Age must be valid.");
-      setSelectedDate("");
-      return;
-    }
+      if (age < 23) {
+        showWarning("Age must be valid.");
+        setSelectedDate("");
+        return;
+      }
 
       // ✅ Keep final format yyyy-mm-dd
       setSelectedDate(`${yearStr}-${monthStr}-${dayStr}`);
@@ -204,7 +202,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
     const manualDate = new Date(`${year}-${month}-${day}`);
 
     const age = today.getFullYear() - manualDate.getFullYear();
-  
+
     if (age < 23) {
       showWarning("Age must be valid.");
       setSelectedDate("");
@@ -313,51 +311,60 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
       { value: phone, message: "Phone number is required" },
     ];
 
-   for (let field of requiredFields) {
-    if (!field.value || (Array.isArray(field.value) && field.value.length === 0)) {
-      showWarning(field.message);
+    for (let field of requiredFields) {
+      if (
+        !field.value ||
+        (Array.isArray(field.value) && field.value.length === 0)
+      ) {
+        showWarning(field.message);
 
-      // Map messages to refs
-      const messageToRef = {
-        "first name is required": refs.firstName,
-        "last name is required": refs.lastName,
-        "doctor ueid is required": refs.ueid,
-        "designation is required": refs.designation,
-        "medical council number is required": refs.medicalcouncilnumber,
-        "date of birth is required": refs.selectedDate,
-        "doctor email is required": refs.email,
-        "gender is required": refs.selectedGender,
-        "phone number is required": refs.phone,
-      };
+        // Map messages to refs
+        const messageToRef = {
+          "first name is required": refs.firstName,
+          "last name is required": refs.lastName,
+          "doctor ueid is required": refs.ueid,
+          "designation is required": refs.designation,
+          "medical council number is required": refs.medicalcouncilnumber,
+          "date of birth is required": refs.selectedDate,
+          "doctor email is required": refs.email,
+          "gender is required": refs.selectedGender,
+          "phone number is required": refs.phone,
+        };
 
-      const lowerMsg = field.message.toLowerCase();
-      const targetRef = messageToRef[lowerMsg];
+        const lowerMsg = field.message.toLowerCase();
+        const targetRef = messageToRef[lowerMsg];
 
-      if (targetRef?.current) {
-        targetRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-        targetRef.current.focus?.();
-        targetRef.current.classList.add("ring-2", "ring-red-500");
+        if (targetRef?.current) {
+          targetRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          targetRef.current.focus?.();
+          targetRef.current.classList.add("ring-2", "ring-red-500");
 
-        setTimeout(() => {
-          targetRef.current.classList.remove("ring-2", "ring-red-500");
-        }, 2000);
+          setTimeout(() => {
+            targetRef.current.classList.remove("ring-2", "ring-red-500");
+          }, 2000);
+        }
+
+        return; // stop validation after first missing field
       }
-
-      return; // stop validation after first missing field
     }
-  }
 
-  // ✅ Optional phone length check
-  if (phone.length !== 10) {
-    showWarning("Phone number must be 10 digits");
-    refs.phone?.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    refs.phone?.current?.classList.add("ring-2", "ring-red-500");
-    setTimeout(() => refs.phone?.current?.classList.remove("ring-2", "ring-red-500"), 2000);
-    return;
-  }
+    // ✅ Optional phone length check
+    if (phone.length !== 10) {
+      showWarning("Phone number must be 10 digits");
+      refs.phone?.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      refs.phone?.current?.classList.add("ring-2", "ring-red-500");
+      setTimeout(
+        () => refs.phone?.current?.classList.remove("ring-2", "ring-red-500"),
+        2000
+      );
+      return;
+    }
 
     const payload = {
       doctor_name: `${firstName} ${lastName}`,
@@ -421,6 +428,92 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
       window.removeEventListener("keydown", handleEsc);
     };
   }, []);
+
+  const [checkdupmob, setcheckdupmob] = useState("2");
+  const [checkdupemail, setcheckdupemail] = useState("2");
+  const [checkdupuhid, setcheckdupuhid] = useState("2");
+
+  const handlecheckduplicatemobile = async ({ field, value, role }) => {
+    const payload = { field: field, value: value, role: role };
+    if (!value) {
+      showWarning("Enter mobile number");
+      setcheckdupmob("2");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/check-duplicate`,
+        payload
+      );
+
+      // 👇 Correct: use res.data.exists
+      if (res.data.exists) {
+        setcheckdupmob("0"); // duplicate found
+        setPhone("");
+        showWarning("Mobile number already existing");
+      } else if (!res.data.exists) {
+        setcheckdupmob("1"); // unique
+      }
+    } catch (error) {
+      setcheckdupmob("2");
+      showWarning("Error checking duplicate");
+    }
+  };
+
+  const handlecheckduplicateemail = async ({ field, value, role }) => {
+    const payload = { field: field, value: value, role: role };
+    if (!value) {
+      showWarning("Enter email");
+      setcheckdupemail("2");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/check-duplicate`,
+        payload
+      );
+
+      // 👇 Correct: use res.data.exists
+      if (res.data.exists) {
+        setcheckdupemail("0"); // duplicate found
+        setEmail("");
+        showWarning("Email already existing");
+      } else {
+        setcheckdupemail("1"); // unique
+      }
+    } catch (error) {
+      showWarning("Error checking duplicate");
+    }
+  };
+
+  const handlecheckduplicateuhid = async ({ field, value, role }) => {
+    const payload = { field: field, value: value, role: role };
+    if (!value) {
+      showWarning("Enter UEID");
+      setcheckdupuhid("2");
+      return;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_URL}patients/check-duplicate`,
+        payload
+      );
+
+      // 👇 Correct: use res.data.exists
+      if (res.data.exists) {
+        setcheckdupuhid("0"); // duplicate found
+        setueid("");
+        showWarning("UHID already existing");
+      } else {
+        setcheckdupuhid("1"); // unique
+      }
+    } catch (error) {
+      showWarning("Error checking duplicate");
+    }
+  };
 
   if (!isOpenacc || !mounted) return null;
 
@@ -513,7 +606,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       First Name <span className="text-red-500">*</span>
                     </p>
                     <input
-                    ref={refs.firstName}
+                      ref={refs.firstName}
                       type="text"
                       className={`
                           w-full
@@ -598,10 +691,11 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       UEID <span className="text-red-500">*</span>
                     </p>
-                    <input
-                      ref={refs.ueid}
-                      type="text"
-                      className={`
+                    <div className="relative w-full">
+                      <input
+                        ref={refs.ueid}
+                        type="text"
+                        className={`
                         w-full
                         bg-transparent
                         border-b-2
@@ -612,15 +706,30 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                         text-lg
                         ${inter.className}
                       `}
-                      maxLength={20}
-                      value={ueid}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow only letters, numbers, and hyphens
-                        const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
-                        setueid(filtered);
-                      }}
-                    />
+                        maxLength={20}
+                        value={ueid}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Allow only letters, numbers, and hyphens
+                          const filtered = value.replace(/[^a-zA-Z0-9-]/g, "");
+                          setueid(filtered);
+                        }}
+                        onBlur={() => {
+                          handlecheckduplicateuhid({
+                            field: "uhid",
+                            value: ueid,
+                            role: "doctor",
+                          });
+                        }}
+                      />
+                      {checkdupuhid === "1" ? (
+                        <CheckBadgeIcon className="w-5 h-5 text-green-400 absolute right-2 top-1.5" />
+                      ) : (
+                        checkdupuhid === "0" && (
+                          <XCircleIcon className="w-5 h-5 text-red-400 absolute right-2 top-1.5" />
+                        )
+                      )}
+                    </div>
                   </div>
                   <div
                     className={`flex flex-col gap-2 ${
@@ -633,7 +742,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       Designation <span className="text-red-500">*</span>
                     </p>
                     <input
-                    ref={refs.designation}
+                      ref={refs.designation}
                       type="text"
                       className={`
                           w-full
@@ -684,7 +793,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       <span className="text-red-500">*</span>
                     </p>
                     <input
-                    ref={refs.medicalcouncilnumber}
+                      ref={refs.medicalcouncilnumber}
                       type="text"
                       className={`
                         w-full
@@ -729,12 +838,12 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       Date of Birth <span className="text-red-500">*</span>
                     </p>
-                   <div className="relative w-full">
-                        {/* ✏️ Manual text input */}
-                        <input
+                    <div className="relative w-full">
+                      {/* ✏️ Manual text input */}
+                      <input
                         ref={refs.selectedDate}
-                          type="text"
-                          className={`
+                        type="text"
+                        className={`
                             w-full
                             bg-transparent
                             border-b-2
@@ -746,32 +855,32 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                             text-base
                             pr-10
                           `}
-                          placeholder="YYYY-MM-DD"
-                          value={selectedDate}
-                          onChange={handleManualDateChange}
-                          maxLength={10}
-                        />
+                        placeholder="YYYY-MM-DD"
+                        value={selectedDate}
+                        onChange={handleManualDateChange}
+                        maxLength={10}
+                      />
 
-                        {/* 📅 Hidden date picker (covers icon only) */}
-                        <input
-                          ref={calendarRef}
-                          type="date"
-                          className="absolute top-0 right-0 opacity-0 cursor-pointer w-8 h-8"
-                          onChange={handleCalendarChange}
-                          min="1900-01-01"
-                          max={`${new Date().getFullYear() - 23}-12-31`} // 🔒 blocks current and future years
-                        />
+                      {/* 📅 Hidden date picker (covers icon only) */}
+                      <input
+                        ref={calendarRef}
+                        type="date"
+                        className="absolute top-0 right-0 opacity-0 cursor-pointer w-8 h-8"
+                        onChange={handleCalendarChange}
+                        min="1900-01-01"
+                        max={`${new Date().getFullYear() - 23}-12-31`} // 🔒 blocks current and future years
+                      />
 
-                        {/* 📅 Visible calendar icon */}
-                        <button
-                          type="button"
-                          onClick={() => calendarRef.current?.showPicker?.()}
-                          className="absolute right-2 top-1.5 text-gray-600 hover:text-black cursor-pointer"
-                          title="Pick from calendar"
-                        >
-                          📅
-                        </button>
-                      </div>
+                      {/* 📅 Visible calendar icon */}
+                      <button
+                        type="button"
+                        onClick={() => calendarRef.current?.showPicker?.()}
+                        className="absolute right-2 top-1.5 text-gray-600 hover:text-black cursor-pointer"
+                        title="Pick from calendar"
+                      >
+                        📅
+                      </button>
+                    </div>
                   </div>
 
                   <div
@@ -784,10 +893,11 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       Email <span className="text-red-500">*</span>
                     </p>
-                    <input
-                    ref={refs.email}
-                      type="email"
-                      className={`
+                    <div className="relative w-full">
+                      <input
+                        ref={refs.email}
+                        type="email"
+                        className={`
                         w-full
                         bg-transparent
                         border-b-2
@@ -798,16 +908,30 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                         text-lg
                         ${inter.className}
                       `}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={() => {
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                        if (email && !emailRegex.test(email)) {
-                          showWarning("Please enter a valid email address.");
-                          setEmail("");
-                        }
-                      }}
-                    />
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        onBlur={() => {
+                          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                          if (email && !emailRegex.test(email)) {
+                            showWarning("Please enter a valid email address.");
+                            setEmail("");
+                          }
+                          handlecheckduplicateemail({
+                            field: "email",
+                            value: email,
+                            role: "doctor",
+                          });
+                        }}
+                      />
+
+                      {checkdupemail === "1" ? (
+                        <CheckBadgeIcon className="w-5 h-5 text-green-400 absolute right-2 top-1.5" />
+                      ) : (
+                        checkdupemail === "0" && (
+                          <XCircleIcon className="w-5 h-5 text-red-400 absolute right-2 top-1.5" />
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -870,7 +994,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                       Gender <span className="text-red-500">*</span>
                     </p>
                     <select
-                    ref={refs.selectedGender}
+                      ref={refs.selectedGender}
                       className={`
                         w-full
                         bg-transparent
@@ -913,8 +1037,9 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                     >
                       Phone Number <span className="text-red-500">*</span>
                     </p>
-                    <input
-                    ref={refs.phone}
+                    <div className="relative w-full">
+                      <input
+                      ref={refs.phone}
                       type="tel"
                       inputMode="numeric"
                       pattern="[0-9]*"
@@ -940,8 +1065,22 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                           showWarning("Phone number must be 10 digits");
                           return;
                         }
+                        handlecheckduplicatemobile({
+                            field: "mobile",
+                            value: phone,
+                            role: "doctor",
+                          });
                       }}
                     />
+                    {checkdupmob === "1" ? (
+                        <CheckBadgeIcon className="w-5 h-5 text-green-400 absolute right-2 top-1.5" />
+                      ) : (
+                        checkdupmob === "0" && (
+                          <XCircleIcon className="w-5 h-5 text-red-400 absolute right-2 top-1.5" />
+                        )
+                      )}
+                    </div>
+                    
                   </div>
                 </div>
               </div>
@@ -952,7 +1091,7 @@ const Doctorregistration = ({ isOpenacc, onCloseacc }) => {
                 }`}
               >
                 <button
-                  className={`text-black/80 font-normal ${
+                  className={`text-black/80 font-normal border-1 border-gray-300 rounded-sm py-2 ${
                     outfit.className
                   } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/7"}`}
                   onClick={clearAllFields}

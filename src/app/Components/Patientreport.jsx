@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { createPortal } from "react-dom";
 
-
 import axios from "axios";
 import { API_URL } from "../libs/global";
 
@@ -238,7 +237,6 @@ const Patientreport = () => {
 
   const fetchSurgeryReport = async (storedUHID, op_date) => {
     try {
-      
       const lowercaseUHID = storedUHID.toLowerCase();
       // console.log(op_date);
       const formattedOpDate = `op-${op_date}`;
@@ -251,8 +249,6 @@ const Patientreport = () => {
       return "false";
     }
   };
-
- 
 
   const questionnaires = [
     "Oxford Knee Score (OKS)",
@@ -1183,30 +1179,41 @@ const Patientreport = () => {
     }
   }, [patientbasic]);
 
-   const [isSurgeryDoneleft, setIsSurgeryDoneleft] = useState(false);
+  const [isSurgeryDoneleft, setIsSurgeryDoneleft] = useState(false);
 
-useEffect(() => {
-  const checkSurgery = async () => {
-    if (!patientbasic?.uhid || !patientbasic?.surgery_left) return;
-    const result = await fetchSurgeryReport(patientbasic?.uhid, patientbasic?.surgery_left);
-    
-    setIsSurgeryDoneleft(result);
-  };
+  useEffect(() => {
+    const checkSurgery = async () => {
+      if (!patientbasic?.uhid || !patientbasic?.surgery_left) return;
+      const result = await fetchSurgeryReport(
+        patientbasic?.uhid,
+        patientbasic?.surgery_left
+      );
 
-  checkSurgery();
-}, [patientbasic]);
+      setIsSurgeryDoneleft(result);
+    };
+
+    checkSurgery();
+  }, [patientbasic]);
 
   const [isSurgeryDoneright, setIsSurgeryDoneright] = useState(false);
-useEffect(() => {
-  const checkSurgery = async () => {
-    if (!patientbasic?.uhid || !patientbasic?.surgery_right) return;
-    const result = await fetchSurgeryReport(patientbasic?.uhid, patientbasic?.surgery_right);
-    console.log("Surgery right result", result, patientbasic?.uhid, patientbasic?.surgery_right);
-    setIsSurgeryDoneright(result);
-  };
+  useEffect(() => {
+    const checkSurgery = async () => {
+      if (!patientbasic?.uhid || !patientbasic?.surgery_right) return;
+      const result = await fetchSurgeryReport(
+        patientbasic?.uhid,
+        patientbasic?.surgery_right
+      );
+      console.log(
+        "Surgery right result",
+        result,
+        patientbasic?.uhid,
+        patientbasic?.surgery_right
+      );
+      setIsSurgeryDoneright(result);
+    };
 
-  checkSurgery();
-}, [patientbasic]);
+    checkSurgery();
+  }, [patientbasic]);
 
   const [assignlock, setassignlock] = useState(false);
 
@@ -1590,118 +1597,118 @@ useEffect(() => {
   const handleNoteOpen = (note, name, key) => {
     setFloatingNote(note);
     setFloatingName(name);
-    setFloatingKey(key);  
+    setFloatingKey(key);
     setIsFloatingNoteVisible(true);
   };
 
- // 1) keep your existing selectstart effect as-is
-useEffect(() => {
-  const handleSelectStart = (e) => {
-    if (isDragging) e.preventDefault();
-  };
-  document.addEventListener("selectstart", handleSelectStart);
-  return () => document.removeEventListener("selectstart", handleSelectStart);
-}, [isDragging]);
+  // 1) keep your existing selectstart effect as-is
+  useEffect(() => {
+    const handleSelectStart = (e) => {
+      if (isDragging) e.preventDefault();
+    };
+    document.addEventListener("selectstart", handleSelectStart);
+    return () => document.removeEventListener("selectstart", handleSelectStart);
+  }, [isDragging]);
 
-// 2) Combined mouse + touch move effect (replace your existing mouse-only effect with this)
-useEffect(() => {
-  const NOTE_WIDTH = 300; // keep same as your bounding
-  const NOTE_HEIGHT = 200; // keep same as your bounding
+  // 2) Combined mouse + touch move effect (replace your existing mouse-only effect with this)
+  useEffect(() => {
+    const NOTE_WIDTH = 300; // keep same as your bounding
+    const NOTE_HEIGHT = 200; // keep same as your bounding
 
-  const handlePointerMove = (clientX, clientY) => {
-    setPosition((prev) => {
-      const newX = clientX - offset.x;
-      const newY = clientY - offset.y;
+    const handlePointerMove = (clientX, clientY) => {
+      setPosition((prev) => {
+        const newX = clientX - offset.x;
+        const newY = clientY - offset.y;
 
-      const boundedX = Math.min(
-        window.innerWidth - NOTE_WIDTH,
-        Math.max(20, newX)
-      );
-      const boundedY = Math.min(
-        window.innerHeight - NOTE_HEIGHT,
-        Math.max(20, newY)
-      );
+        const boundedX = Math.min(
+          window.innerWidth - NOTE_WIDTH,
+          Math.max(20, newX)
+        );
+        const boundedY = Math.min(
+          window.innerHeight - NOTE_HEIGHT,
+          Math.max(20, newY)
+        );
 
-      return { x: boundedX, y: boundedY };
-    });
-  };
+        return { x: boundedX, y: boundedY };
+      });
+    };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    handlePointerMove(e.clientX, e.clientY);
-  };
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      handlePointerMove(e.clientX, e.clientY);
+    };
 
-  const handleMouseUp = () => {
-    if (isDragging) setIsDragging(false);
-  };
+    const handleMouseUp = () => {
+      if (isDragging) setIsDragging(false);
+    };
 
-  const handleTouchMove = (e) => {
-    if (!isDragging) return;
-    // Prevent page scrolling while dragging
-    e.preventDefault();
-    const touch = e.touches[0];
-    if (touch) handlePointerMove(touch.clientX, touch.clientY);
-  };
-
-  const handleTouchEnd = () => {
-    if (isDragging) setIsDragging(false);
-  };
-
-  window.addEventListener("mousemove", handleMouseMove);
-  window.addEventListener("mouseup", handleMouseUp);
-  window.addEventListener("touchmove", handleTouchMove, { passive: false });
-  window.addEventListener("touchend", handleTouchEnd);
-
-  return () => {
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
-    window.removeEventListener("touchmove", handleTouchMove, { passive: false });
-    window.removeEventListener("touchend", handleTouchEnd);
-  };
-}, [isDragging, offset]);
-
-// 3) Add touchstart listener (to behave like your mousedown starter).
-//     This does not require editing the mouse header onMouseDown (but you should add the class to the header for robust target detection).
-useEffect(() => {
-  const handleTouchStart = (e) => {
-    // Only start dragging if touch started on the header element
-    const touch = e.touches?.[0];
-    if (!touch) return;
-
-    // If the touch target (or its ancestor) has the header class, begin drag
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    if (target && target.closest && target.closest(".floating-note-header")) {
-      // Prevent page scroll jitter when starting drag
+    const handleTouchMove = (e) => {
+      if (!isDragging) return;
+      // Prevent page scrolling while dragging
       e.preventDefault();
-      setIsDragging(true);
-      setOffset((prev) => ({
-        // compute offset similar to your mouse logic
-        x: touch.clientX - position.x,
-        y: touch.clientY - position.y,
-      }));
+      const touch = e.touches[0];
+      if (touch) handlePointerMove(touch.clientX, touch.clientY);
+    };
+
+    const handleTouchEnd = () => {
+      if (isDragging) setIsDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isDragging, offset]);
+
+  // 3) Add touchstart listener (to behave like your mousedown starter).
+  //     This does not require editing the mouse header onMouseDown (but you should add the class to the header for robust target detection).
+  useEffect(() => {
+    const handleTouchStart = (e) => {
+      // Only start dragging if touch started on the header element
+      const touch = e.touches?.[0];
+      if (!touch) return;
+
+      // If the touch target (or its ancestor) has the header class, begin drag
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (target && target.closest && target.closest(".floating-note-header")) {
+        // Prevent page scroll jitter when starting drag
+        e.preventDefault();
+        setIsDragging(true);
+        setOffset((prev) => ({
+          // compute offset similar to your mouse logic
+          x: touch.clientX - position.x,
+          y: touch.clientY - position.y,
+        }));
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: false });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart, {
+        passive: false,
+      });
+    };
+  }, [position]);
+
+  // 4) Keep your centering effect for initial open as-is
+  useEffect(() => {
+    if (isFloatingNoteVisible) {
+      setPosition({
+        x: window.innerWidth / 2 - 150, // half width of the note
+        y: window.innerHeight / 2 - 100,
+      });
     }
-  };
-
-  window.addEventListener("touchstart", handleTouchStart, { passive: false });
-
-  return () => {
-    window.removeEventListener("touchstart", handleTouchStart, { passive: false });
-  };
-}, [position]);
-
-// 4) Keep your centering effect for initial open as-is
-useEffect(() => {
-  if (isFloatingNoteVisible) {
-    setPosition({
-      x: window.innerWidth / 2 - 150, // half width of the note
-      y: window.innerHeight / 2 - 100,
-    });
-  }
-}, [isFloatingNoteVisible]);
-
-
-
-
+  }, [isFloatingNoteVisible]);
 
   useEffect(() => {
     const handleEsc = (event) => {
@@ -1721,8 +1728,6 @@ useEffect(() => {
       window.removeEventListener("keydown", handleEsc);
     };
   }, []);
-
-  
 
   return (
     <div
@@ -1803,7 +1808,7 @@ useEffect(() => {
                 QUESTIONNAIRE RECORDS
               </p>
 
-              <div className={`flex flex-col w-full items-end gap-4`}>
+              <div className={`flex flex-col w-full items-start gap-4 pl-4`}>
                 <p
                   className={`${inter.className} font-semibold text-black text-sm text-center w-fit underline`}
                 >
@@ -1822,7 +1827,7 @@ useEffect(() => {
                 </p>
               </div>
 
-              <div className={`flex flex-col w-full items-end gap-4`}>
+              <div className={`flex flex-col w-full items-start gap-4 pl-4`}>
                 <p
                   className={`${inter.className} font-semibold text-black text-sm text-center w-fit underline`}
                 >
@@ -2150,7 +2155,9 @@ useEffect(() => {
                                   key={period.key}
                                   className={`relative px-4 py-2 font-bold text-center align-middle ${
                                     q.notesMap[period.key] &&
-                                    q.notesMap[period.key] !== "NA" && q.notesMap[period.key] !== "EXPIRED" && !score
+                                    q.notesMap[period.key] !== "NA" &&
+                                    q.notesMap[period.key] !== "EXPIRED" &&
+                                    !score
                                       ? "group cursor-pointer"
                                       : ""
                                   }`}
@@ -2168,10 +2175,16 @@ useEffect(() => {
                                       </div>
                                     )} */}
                                   {q.notesMap[period.key] &&
-                                    q.notesMap[period.key] !== "NA" && q.notesMap[period.key] !== "EXPIRED" && score !== "-"  && (
+                                    q.notesMap[period.key] !== "NA" &&
+                                    q.notesMap[period.key] !== "EXPIRED" &&
+                                    score !== "-" && (
                                       <button
                                         onClick={() =>
-                                          handleNoteOpen(q.notesMap[period.key],q.name,period.label)
+                                          handleNoteOpen(
+                                            q.notesMap[period.key],
+                                            q.name,
+                                            period.label
+                                          )
                                         }
                                         className="ml-2 text-gray-500 hover:text-black cursor-pointer"
                                         title="View Note"
@@ -2232,11 +2245,41 @@ useEffect(() => {
                   width < 1300 ? "h-full" : "h-full"
                 } gap-4`}
               >
+                <div className={`w-full flex flex-row justify-between h-[10%]`}>
                 <h2
-                  className={` ${raleway.className} text-end font-bold text-white text-lg h-[10%]`}
+                  className={` ${raleway.className} font-bold text-white text-lg `}
                 >
                   ASSIGN QUESTIONNAIRES
                 </h2>
+                <div
+                  className={`${raleway.className} font-bold w-1/3 flex flex-row justify-start items-center gap-4`}
+                >
+                  <span
+                    className={`w-fit text-center text-sm font-bold text-white rounded-[5px] px-5 py-0.5 ${
+                      !surgerydatleftorig || surgerydatleftorig === "NA"
+                        ? "bg-black opacity-30"
+                        : patientbasic?.questionnaireStatusLeft === "Completed"
+                        ? "bg-black opacity-50"
+                        : "bg-[#E49235]"
+                    }`}
+                  >
+                    Left
+                  </span>
+
+                  <span
+                    className={`w-fit text-center text-sm font-bold text-white rounded-[5px] px-4 py-0.5 ${
+                      !surgerydatrightorig || surgerydatrightorig === "NA"
+                        ? "bg-black opacity-30"
+                        : patientbasic?.questionnaireStatusRight === "Completed"
+                        ? "bg-black opacity-50"
+                        : "bg-[#E49235]"
+                    }`}
+                  >
+                    Right
+                  </span>
+                </div>
+                </div>
+                
                 <div className="w-full h-[90%] flex flex-col justify-between gap-4">
                   <div
                     className={`w-full h-[10%] flex ${
@@ -2265,7 +2308,7 @@ useEffect(() => {
                   <div
                     className={` ${raleway.className} font-semibold w-full flex flex-row overflow-y-auto rounded-md h-4/5`}
                   >
-                    <div className="flex flex-col w-2/3 overflow-y-auto gap-2 h-full">
+                    <div className="flex flex-col w-full overflow-y-auto gap-2 h-full">
                       {filteredQuestionnaires.length > 0 ? (
                         filteredQuestionnaires.map((q, index) => (
                           <label
@@ -2288,35 +2331,6 @@ useEffect(() => {
                       )}
                     </div>
 
-                    <div
-                      className={`${raleway.className} font-bold w-1/3 flex flex-col justify-start items-center gap-4`}
-                    >
-                      <span
-                        className={`w-fit text-center text-sm font-bold text-white rounded-[5px] px-5 py-0.5 ${
-                          !surgerydatleftorig || surgerydatleftorig === "NA"
-                            ? "bg-black opacity-30"
-                            : patientbasic?.questionnaireStatusLeft ===
-                              "Completed"
-                            ? "bg-black opacity-50"
-                            : "bg-[#E49235]"
-                        }`}
-                      >
-                        Left
-                      </span>
-
-                      <span
-                        className={`w-fit text-center text-sm font-bold text-white rounded-[5px] px-4 py-0.5 ${
-                          !surgerydatrightorig || surgerydatrightorig === "NA"
-                            ? "bg-black opacity-30"
-                            : patientbasic?.questionnaireStatusRight ===
-                              "Completed"
-                            ? "bg-black opacity-50"
-                            : "bg-[#E49235]"
-                        }`}
-                      >
-                        Right
-                      </span>
-                    </div>
                   </div>
 
                   <div
@@ -2331,7 +2345,7 @@ useEffect(() => {
                     >
                       <div className="w-1/2 flex justify-center md:justify-between items-center">
                         <p
-                          className={` ${raleway.className} font-semibold italic text-white text-xs cursor-pointer`}
+                          className={` ${raleway.className} font-semibold italic text-white text-xs cursor-pointer py-2 border-1 border-white rounded-lg`}
                           onClick={clearAll}
                         >
                           CLEAR ALL
@@ -2340,7 +2354,7 @@ useEffect(() => {
 
                       <div className="w-1/2 flex justify-center items-center">
                         <p
-                          className={` ${raleway.className} font-semibold italic text-white text-xs cursor-pointer`}
+                          className={` ${raleway.className} font-semibold italic text-white text-xs cursor-pointer py-2 border-1 border-white rounded-lg`}
                           onClick={selectAll}
                         >
                           SELECT ALL
@@ -2662,8 +2676,16 @@ useEffect(() => {
                   className={`w-full ${
                     width < 700 ? "h-full" : "h-2/7"
                   } flex flex-row gap-2 justify-center items-center
-                  ${isSurgeryDoneleft === "true" ?"pointer-events-none opacity-50":""}`}
-                  title={isSurgeryDoneleft === "true" ? "Surgery already done":"Surgery not done yet"}
+                  ${
+                    isSurgeryDoneleft === "true"
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }`}
+                  title={
+                    isSurgeryDoneleft === "true"
+                      ? "Surgery already done"
+                      : "Surgery not done yet"
+                  }
                 >
                   <Image src={Calendar} alt="Left date" />
                   <div className="relative w-full">
@@ -2702,8 +2724,16 @@ useEffect(() => {
                   className={`w-full ${
                     width < 700 ? "h-full" : "h-3/7"
                   } flex flex-row gap-2 justify-center items-center
-                  ${isSurgeryDoneright === "true" ?"pointer-events-none opacity-50":""}`}
-                  title={isSurgeryDoneright === "true" ? "Surgery already done":"Surgery not done yet"}
+                  ${
+                    isSurgeryDoneright === "true"
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }`}
+                  title={
+                    isSurgeryDoneright === "true"
+                      ? "Surgery already done"
+                      : "Surgery not done yet"
+                  }
                 >
                   <Image src={Calendar} alt="Right date" />
                   <div className="relative w-full">
@@ -2743,9 +2773,19 @@ useEffect(() => {
                   } w-full flex flex-row justify-between items-center pb-2`}
                 >
                   <p
-                    className={` ${raleway.className} font-extrabold rounded-lg px-4 py-2 cursor-pointer text-center text-white text-xs bg-black
-                    ${isSurgeryDoneleft === "true" ?"pointer-events-none opacity-50":""}`}
-                    title={isSurgeryDoneleft === "true" ? "Surgery already done":"Surgery not done yet"}
+                    className={` ${
+                      raleway.className
+                    } font-extrabold rounded-lg px-4 py-2 cursor-pointer text-center text-white text-xs bg-black
+                    ${
+                      isSurgeryDoneleft === "true"
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }`}
+                    title={
+                      isSurgeryDoneleft === "true"
+                        ? "Surgery already done"
+                        : "Surgery not done yet"
+                    }
                     onClick={() => {
                       if (!surgerydatleft) {
                         showWarning("Left Surgery Date is required");
@@ -2785,9 +2825,19 @@ useEffect(() => {
                   </p>
 
                   <p
-                    className={` ${raleway.className} font-extrabold rounded-lg px-4 py-2 cursor-pointer text-center text-white text-xs bg-black
-                    ${isSurgeryDoneright === "true" ?"pointer-events-none opacity-50":""}`}
-                    title={isSurgeryDoneright === "true" ? "Surgery already done":"Surgery not done yet"}
+                    className={` ${
+                      raleway.className
+                    } font-extrabold rounded-lg px-4 py-2 cursor-pointer text-center text-white text-xs bg-black
+                    ${
+                      isSurgeryDoneright === "true"
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }`}
+                    title={
+                      isSurgeryDoneright === "true"
+                        ? "Surgery already done"
+                        : "Surgery not done yet"
+                    }
                     onClick={() => {
                       if (!surgerydatright) {
                         showWarning("Right Surgery Date is required");
@@ -2914,7 +2964,7 @@ useEffect(() => {
                       }`}
                     >
                       <button
-                        className={`text-black/80 font-normal ${
+                        className={`text-black/80 font-normal py-2 border-1 border-gray-300 ${
                           outfit.className
                         } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
                         onClick={() => {
@@ -3048,7 +3098,7 @@ useEffect(() => {
                       }`}
                     >
                       <button
-                        className={`text-black/80 font-normal ${
+                        className={`text-black/80 font-normal py-2 border-1 border-gray-300 ${
                           outfit.className
                         } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
                         onClick={() => {
@@ -3180,7 +3230,7 @@ useEffect(() => {
                       }`}
                     >
                       <button
-                        className={`text-black/80 font-normal ${
+                        className={`text-black/80 font-normal py-2 border-1 border-gray-300 ${
                           outfit.className
                         } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
                         onClick={() => {
@@ -3315,7 +3365,7 @@ useEffect(() => {
                       }`}
                     >
                       <button
-                        className={`text-black/80 font-normal ${
+                        className={`text-black/80 font-normal py-2 border-1 border-gray-300 ${
                           outfit.className
                         } cursor-pointer ${width < 700 ? "w-1/2" : "w-1/2"}`}
                         onClick={() => {
@@ -3451,77 +3501,87 @@ useEffect(() => {
         </div>
       )}
 
-      {isFloatingNoteVisible && createPortal(
-        <div
-          className={` ${poppins.className} fixed z-50 rounded-xl shadow-2xl border border-gray-300 bg-gradient-to-br from-white to-gray-50 w-80 select-none inline-scroll floating-note-header`}
-          style={{
-  top: position.y,
-  left: position.x,
-  cursor: isDragging ? "grabbing" : "grab",
-  transition: isDragging ? "none" : "top 0.15s ease, left 0.15s ease",
-}}
-
-          onMouseDown={(e) => {
-            setIsDragging(true);
-            setOffset({
-              x: e.clientX - position.x,
-              y: e.clientY - position.y,
-            });
-          }}
-        >
-          {/* Header */}
+      {isFloatingNoteVisible &&
+        createPortal(
           <div
-            className="flex justify-between items-center bg-black text-white px-3 py-2 rounded-t-xl cursor-move"
+            className={` ${poppins.className} fixed z-50 rounded-xl shadow-2xl border border-gray-300 bg-gradient-to-br from-white to-gray-50 w-80 select-none inline-scroll floating-note-header`}
+            style={{
+              top: position.y,
+              left: position.x,
+              cursor: isDragging ? "grabbing" : "grab",
+              transition: isDragging
+                ? "none"
+                : "top 0.15s ease, left 0.15s ease",
+            }}
             onMouseDown={(e) => {
-            setIsDragging(true);
-            setOffset({
-              x: e.clientX - position.x,
-              y: e.clientY - position.y,
-            });
-          }}
+              setIsDragging(true);
+              setOffset({
+                x: e.clientX - position.x,
+                y: e.clientY - position.y,
+              });
+            }}
           >
-            <span className="font-semibold text-sm">🗒️ Patient Note</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsFloatingNoteVisible(false);
+            {/* Header */}
+            <div
+              className="flex justify-between items-center bg-black text-white px-3 py-2 rounded-t-xl cursor-move"
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                setOffset({
+                  x: e.clientX - position.x,
+                  y: e.clientY - position.y,
+                });
               }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                setIsFloatingNoteVisible(false);
-              }} // ✅ prevent touch drag start
-              className="hover:text-red-300 font-bold cursor-pointer"
-              title="Close"
             >
-              <XCircleIcon className="h-5 w-5 text-white"/>
-            </button>
-          </div>
+              <span className="font-semibold text-sm">🗒️ Patient Note</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsFloatingNoteVisible(false);
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  setIsFloatingNoteVisible(false);
+                }} // ✅ prevent touch drag start
+                className="hover:text-red-300 font-bold cursor-pointer"
+                title="Close"
+              >
+                <XCircleIcon className="h-5 w-5 text-white" />
+              </button>
+            </div>
 
-          {/* Body */}
-          <div className="p-3 text-gray-800 text-sm max-h-60 overflow-y-auto">
-            {floatingNote ? (
-              <div className="space-y-2">
-                <h4 className="font-bold text-gray-800 text-center">{floatingName}</h4>
-                <h5 className="font-semibold text-gray-700 text-center">Period: {floatingKey}</h5>
-                {floatingNote.split(",").map((item, index) => {
-                  const [key, value] = item.split(":").map((s) => s.trim());
-                  return (
-                    <div key={index} className="flex flex-col">
-                      <span className="font-semibold text-gray-600 capitalize">{key}</span>
-                      <span className="text-black break-words whitespace-pre-wrap">
-                        {value || "—"}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-gray-500 italic">No note details available</p>
-            )}
-          </div>
-        </div>,
-    document.body
-      )}
+            {/* Body */}
+            <div className="p-3 text-gray-800 text-sm max-h-60 overflow-y-auto">
+              {floatingNote ? (
+                <div className="space-y-2">
+                  <h4 className="font-bold text-gray-800 text-center">
+                    {floatingName}
+                  </h4>
+                  <h5 className="font-semibold text-gray-700 text-center">
+                    Period: {floatingKey}
+                  </h5>
+                  {floatingNote.split(",").map((item, index) => {
+                    const [key, value] = item.split(":").map((s) => s.trim());
+                    return (
+                      <div key={index} className="flex flex-col">
+                        <span className="font-semibold text-gray-600 capitalize">
+                          {key}
+                        </span>
+                        <span className="text-black break-words whitespace-pre-wrap">
+                          {value || "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">
+                  No note details available
+                </p>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
